@@ -1,0 +1,21 @@
+# PyTorch CUDA (Cài đặt tương ứng với GPU nếu chạy local):
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+
+# Model & Transformers
+transformers>=4.40.0
+timm>=0.9.12
+accelerate>=0.28.0
+einops>=0.7.0
+
+# Xử lý ảnh & Định dạng tập tin
+opencv-python>=4.8.0
+pillow>=10.0.0
+pillow-heif>=0.13.0
+pypdfium2>=4.20.0
+scipy>=1.11.0
+numpy>=1.24.0
+
+# Streamlit UI & Đo lường
+streamlit>=1.30.0
+rapidfuzz>=3.0.0
+

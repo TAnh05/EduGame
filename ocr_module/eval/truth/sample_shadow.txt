@@ -1,0 +1,5 @@
+Bài 3: Định luật Ôm đối với toàn mạch
+Cường độ dòng điện chạy trong mạch kín tỉ lệ thuận với suất điện động của nguồn điện
+và tỉ lệ nghịch với điện trở toàn phần của mạch đó.
+Công thức: I = E / (R + r)
+Trong đó: E là suất điện động, R là điện trở mạch ngoài, r là điện trở trong.

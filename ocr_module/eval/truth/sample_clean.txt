@@ -1,0 +1,6 @@
+Chương 1: Khái niệm cơ bản về Hệ quản trị cơ sở dữ liệu
+1. Khái niệm dữ liệu và thông tin:
+Dữ liệu là các sự kiện, số liệu thô chưa qua xử lý phản ánh thế giới khách quan.
+Thông tin là dữ liệu đã được xử lý để mang lại ý nghĩa cho người sử dụng.
+2. Khóa chính (Primary Key):
+Là một hoặc tập hợp các thuộc tính dùng để xác định duy nhất mỗi bộ trong quan hệ.
