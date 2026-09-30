@@ -3,21 +3,44 @@ Giao diện Streamlit: Upload ảnh tài liệu, xem trước ảnh tiền xử 
 xoay thủ công, trích xuất text qua Vintern-1B v3.5 và chỉnh sửa/xuất dữ liệu.
 """
 
+import os
+import sys
 import hashlib
 import io
+
+# Tự động thêm thư mục gốc của project vào sys.path để tránh ModuleNotFoundError khi chạy qua Streamlit
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_CURRENT_DIR)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+if _CURRENT_DIR not in sys.path:
+    sys.path.insert(0, _CURRENT_DIR)
+
 import streamlit as st
 from PIL import Image
 
-from ocr_module.config import OCRModuleConfig
-from ocr_module.io_utils import (
-    load_image_from_bytes, 
-    pil_to_cv2, 
-    cv2_to_pil, 
-    load_images_from_pdf, 
-    PDF_AVAILABLE
-)
-from ocr_module.preprocess import run_preprocessing_pipeline
-from ocr_module.pipeline import run_pipeline, OCRResult
+try:
+    from ocr_module.config import OCRModuleConfig
+    from ocr_module.io_utils import (
+        load_image_from_bytes, 
+        pil_to_cv2, 
+        cv2_to_pil, 
+        load_images_from_pdf, 
+        PDF_AVAILABLE
+    )
+    from ocr_module.preprocess import run_preprocessing_pipeline
+    from ocr_module.pipeline import run_pipeline, OCRResult
+except ImportError:
+    from config import OCRModuleConfig
+    from io_utils import (
+        load_image_from_bytes, 
+        pil_to_cv2, 
+        cv2_to_pil, 
+        load_images_from_pdf, 
+        PDF_AVAILABLE
+    )
+    from preprocess import run_preprocessing_pipeline
+    from pipeline import run_pipeline, OCRResult
 
 
 def get_file_md5(data: bytes) -> str:

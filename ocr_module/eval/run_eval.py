@@ -56,9 +56,19 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(_CURRENT_DIR))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
 import torch
-from ocr_module.config import OCRModuleConfig
-from ocr_module.pipeline import run_pipeline, OCRResult
+
+try:
+    from ocr_module.config import OCRModuleConfig
+    from ocr_module.pipeline import run_pipeline, OCRResult
+except ImportError:
+    from config import OCRModuleConfig
+    from pipeline import run_pipeline, OCRResult
 
 
 def clean_text_for_cer(text: str) -> str:

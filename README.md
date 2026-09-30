@@ -106,6 +106,8 @@ python run_single_test.py "duong_dan_anh.jpg"
 
 ### 4.4 Khởi động Giao diện Web Streamlit
 ```bash
+streamlit run app.py
+# hoặc:
 streamlit run ocr_module/ui_upload.py
 ```
 - Truy cập `http://localhost:8501`.
