@@ -1,0 +1,15 @@
+# Khóa API và bí mật
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Cache và dữ liệu riêng tư
+cache/
+uploads/
+*.log
+.DS_Store
