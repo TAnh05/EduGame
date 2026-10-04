@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Báo Cáo Tiến Độ Tuần 1 - Phân Hệ Sinh Dữ Liệu AI (Sang)</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 13pt;
+      line-height: 1.4;
+      color: #000;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .page {
+      background: #fff;
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 25mm 20mm;
+      box-shadow: 0 0 10px rgba(0,0,0,0.15);
+      box-sizing: border-box;
+    }
+
+    @media print {
+      body {
+        background: none;
+        padding: 0;
+      }
+      .page {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+    }
+
+    .doc-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .doc-header h3 {
+      font-size: 12pt;
+      font-weight: normal;
+      text-transform: uppercase;
+      margin: 0 0 5px 0;
+    }
+
+    .doc-header h2 {
+      font-size: 15pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 15px 0 5px 0;
+    }
+
+    .doc-header p {
+      font-size: 11pt;
+      font-style: italic;
+      margin: 0;
+    }
+
+    .meta-box {
+      margin-bottom: 20px;
+      font-size: 12pt;
+    }
+
+    .meta-box table {
+      width: 100%;
+      border: none;
+    }
+
+    .meta-box td {
+      border: none;
+      padding: 3px 0;
+    }
+
+    h3.section-title {
+      font-size: 13pt;
+      font-weight: bold;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    p {
+      text-align: justify;
+      margin: 6px 0;
+    }
+
+    ul {
+      margin: 5px 0 10px 25px;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    table.report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 16px 0;
+      font-size: 11.5pt;
+    }
+
+    table.report-table th, 
+    table.report-table td {
+      border: 1px solid #000;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    table.report-table th {
+      background-color: #f2f2f2;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .text-center { text-align: center; }
+    .font-code { font-family: "Courier New", Courier, monospace; font-size: 11pt; }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    
+    <div class="doc-header">
+      <h3>DỰ ÁN: WEB ÔN TẬP BẰNG TRÒ CHƠI (STREAMLIT / PYTHON)</h3>
+      <h2>BÁO CÁO KẾT QUẢ CÔNG VIỆC TUẦN 1</h2>
+      <p>Học phần / Đồ án nhóm — Mốc hoàn thành: Nền tảng & Hợp đồng dữ liệu (Milestone M1)</p>
+    </div>
+
+    <div class="meta-box">
+      <table>
+        <tr>
+          <td style="width: 50%;"><strong>Thành viên phụ trách:</strong> Sang</td>
+          <td><strong>Phân hệ:</strong> Sinh dữ liệu AI &amp; Kiểm tra Schema</td>
+        </tr>
+        <tr>
+          <td><strong>Môn học hỗ trợ:</strong> Tiếng Anh &amp; Triết học</td>
+          <td><strong>Tình trạng:</strong> Đã hoàn thành 100% mục tiêu Tuần 1</td>
+        </tr>
+      </table>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 15px;">
+
+    <h3 class="section-title">1. TỔNG HỢP CÁC FILE ĐÃ TẠO VÀ TÁC DỤNG</h3>
+    <p>
+      Trong Tuần 1, phân hệ Sinh dữ liệu AI có nhiệm vụ xây dựng khung thẩm định dữ liệu và prompt mẫu nhằm giúp các thành viên nhóm làm Game (Thế Anh, Sơn Nguyễn) và Giao diện (Sơn Phạm) có thể chạy thử độc lập. Chi tiết các file đã tạo:
+    </p>
+
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Tên tệp</th>
+          <th style="width: 35%;">Nội dung xây dựng</th>
+          <th style="width: 40%;">Lý do tạo &amp; Tác dụng đối với dự án</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="font-code"><strong>ai_generate.py</strong></td>
+          <td>
+            - Khung kiểm tra Pydantic Models.<br>
+            - Hàm bóc tách Markdown fence: <span class="font-code">strip_markdown_fence()</span>.<br>
+            - Hàm chia 3 phần: <span class="font-code">split_text_into_three_parts()</span>.<br>
+            - Hàm đọc, kiểm định và lưu file JSON.
+          </td>
+          <td>
+            <strong>Người gác cổng dữ liệu:</strong> Ngăn chặn dữ liệu lỗi do AI sinh ngẫu nhiên làm sập ứng dụng. Bắt buộc câu điền từ phải có duy nhất một ký hiệu <span class="font-code">___</span>; câu trắc nghiệm phải đủ 4 options và đáp án 0..3. Là khung xương để gắn API tuần 2.
+          </td>
+        </tr>
+        <tr>
+          <td class="font-code"><strong>prompts.py</strong></td>
+          <td>
+            - 3 mẫu prompt riêng cho 3 game (Điền từ, Nối từ, Trắc nghiệm).<br>
+            - Hỗ trợ cả 2 môn: Tiếng Anh và Triết học.<br>
+            - Hàm tiện ích lấy prompt theo phần và môn.
+          </td>
+          <td>
+            <strong>Ép khuôn và chống bịa đặt:</strong> Ràng buộc AI chỉ sử dụng nội dung có trong bài, không bịa kiến thức bên ngoài (chống hallucination). Ép AI trả lời thuần định dạng JSON, không kèm lời chào hay văn bản thừa.
+          </td>
+        </tr>
+        <tr>
+          <td class="font-code"><strong>data/sample_chapter.json</strong></td>
+          <td>
+            File JSON mẫu viết tay hoàn chỉnh cho môn Triết học (Chương 2: Chủ nghĩa duy vật biện chứng), gồm đủ 3 phần chơi.
+          </td>
+          <td>
+            <strong>Hợp đồng dữ liệu chung (Mốc M1):</strong> Bàn giao ngay cho nhóm Game và UI nạp dữ liệu để dựng giao diện song song mà không cần đợi kết nối AI thật. Dùng làm dữ liệu dự phòng (fallback) khi mất mạng/hết API.
+          </td>
+        </tr>
+        <tr>
+          <td class="font-code"><strong>.env.example<br>.gitignore</strong></td>
+          <td>
+            - <span class="font-code">.env.example</span>: Mẫu biến môi trường <span class="font-code">GEMINI_API_KEY</span>.<br>
+            - <span class="font-code">.gitignore</span>: Danh sách chặn file bí mật và cache.
+          </td>
+          <td>
+            <strong>Bảo mật thông tin:</strong> Tuân thủ quy định bảo mật của dự án (Mục 8.2), tuyệt đối không đẩy API key cá nhân lên GitHub repo chung.
+          </td>
+        </tr>
+        <tr>
+          <td class="font-code"><strong>requirements.txt</strong></td>
+          <td>
+            Khai báo các thư viện: <span class="font-code">pydantic</span>, <span class="font-code">python-dotenv</span>, <span class="font-code">google-generativeai</span>.
+          </td>
+          <td>
+            <strong>Chuẩn hóa môi trường:</strong> Giúp các thành viên trong nhóm và môi trường máy chủ cài đặt đúng phiên bản thư viện cần thiết.
+          </td>
+        </tr>
+        <tr>
+          <td class="font-code"><strong>test_week1.py</strong></td>
+          <td>
+            Kịch bản kiểm thử tự động (Unit Test) kiểm tra tính hợp lệ của schema, thử bẫy các ca vi phạm quy tắc.
+          </td>
+          <td>
+            <strong>Kiểm thử tối thiểu (Mục 7.6):</strong> Bằng chứng xác nhận code hoạt động chính xác 100% trước khi tạo Pull Request vào nhánh chính của nhóm.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-title">2. MỨC ĐỘ TUÂN THỦ QUY TẮC BÁO CÁO KỸ THUẬT</h3>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="width: 50%;">Quy tắc kỹ thuật theo tài liệu thiết kế</th>
+          <th style="width: 30%;">Vị trí trong mã nguồn</th>
+          <th style="width: 20%;">Đánh giá</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Môn học: Chỉ nhận <span class="font-code">english</span> hoặc <span class="font-code">philosophy</span> (Mục 6.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (ChapterModel)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Bắt buộc có đúng 3 phần với thứ tự <span class="font-code">part: 1, 2, 3</span> (Mục 6.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (validate_structure)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Game 1: Câu hỏi phải chứa đúng một ký hiệu <span class="font-code">___</span> (Mục 6.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (FillBlankItem)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Game 2: Thuật ngữ (<span class="font-code">term</span>) và định nghĩa không được rỗng (Mục 6.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (MatchingItem)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Game 3: Đúng 4 options, đáp án là chỉ số nguyên từ 0..3 (Mục 6.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (QuizItem)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Tự động lọc bỏ Markdown Code Fence <span class="font-code">```json</span> (Mục 6.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (strip_markdown_fence)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Chia văn bản thành 3 phần cho 3 game (Mục 7.2)</td>
+          <td><span class="font-code">ai_generate.py</span> (split_text_into_three_parts)</td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Prompt riêng cho từng game, cấm bịa kiến thức ngoài (Mục 7.2, 11)</td>
+          <td><span class="font-code">prompts.py</span></td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+        <tr>
+          <td>Bảo mật: Không để API key trong mã nguồn (Mục 2.2, 8.2)</td>
+          <td><span class="font-code">.env.example</span>, <span class="font-code">.gitignore</span></td>
+          <td class="text-center"><strong>ĐẠT</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-title">3. KẾT LUẬN VÀ KẾ HOẠCH TUẦN 2</h3>
+    <p>
+      Phân hệ của Sang đã hoàn thành toàn bộ các mốc mục tiêu của Tuần 1. Toàn bộ mã nguồn đã vượt qua kiểm thử tự động, sẵn sàng bàn giao file <span class="font-code">sample_chapter.json</span> cho các thành viên nhóm làm Game và UI.
+    </p>
+    <p>
+      <strong>Kế hoạch tiếp theo (Tuần 2):</strong> Tích hợp gọi API thực tế của mô hình ngôn ngữ lớn (Gemini Flash), ghép nối dữ liệu văn bản sạch từ phân hệ OCR/Tiền xử lý của Toàn, và hoàn thiện vòng lặp xử lý lỗi thử lại tối đa 2 lần (<span class="font-code">retry</span>).
+    </p>
+
+    <div style="margin-top: 30px; text-align: right;">
+      <p style="margin: 0;"><em>Ngày 04 tháng 10 năm 2026</em></p>
+      <p style="margin: 5px 0 0 0; font-weight: bold;">Người lập báo cáo</p>
+      <p style="margin: 40px 0 0 0; font-weight: bold;">Sang</p>
+    </div>
+
+  </div>
+
+</body>
+</html>

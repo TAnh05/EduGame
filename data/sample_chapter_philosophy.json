@@ -1,0 +1,104 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Chương 2: Chủ nghĩa duy vật biện chứng",
+  "parts": [
+    {
+      "part": 1,
+      "game": "fill_blank",
+      "items": [
+        {
+          "id": "p1_1",
+          "sentence": "Vật chất là một phạm trù triết học dùng để chỉ thực tại ___ được đem lại cho con người trong cảm giác.",
+          "answer": "khách quan"
+        },
+        {
+          "id": "p1_2",
+          "sentence": "Vận động là phương thức tồn tại của ___ và là thuộc tính cố hữu của vật chất.",
+          "answer": "vật chất"
+        },
+        {
+          "id": "p1_3",
+          "sentence": "Ý thức là hình ảnh chủ quan của thế giới ___.",
+          "answer": "khách quan"
+        },
+        {
+          "id": "p1_4",
+          "sentence": "Quy luật chuyển hóa từ những thay đổi về lượng dẫn đến những thay đổi về ___ và ngược lại.",
+          "answer": "chất"
+        },
+        {
+          "id": "p1_5",
+          "sentence": "Thực tiễn là cơ sở, động lực và mục đích của ___.",
+          "answer": "nhận thức"
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "game": "matching",
+      "items": [
+        {
+          "id": "p2_1",
+          "term": "Vật chất",
+          "definition": "Thực tại khách quan tồn tại độc lập với ý thức con người và được ý thức phản ánh."
+        },
+        {
+          "id": "p2_2",
+          "term": "Ý thức",
+          "definition": "Sự phản ánh năng động, sáng tạo thế giới khách quan vào bộ óc con người."
+        },
+        {
+          "id": "p2_3",
+          "term": "Biện chứng khách quan",
+          "definition": "Biện chứng của bản thân thế giới vật chất tồn tại độc lập ngoài ý thức."
+        },
+        {
+          "id": "p2_4",
+          "term": "Đứng im",
+          "definition": "Trạng thái vận động trong thăng bằng, tạm thời và có tính tương đối."
+        },
+        {
+          "id": "p2_5",
+          "term": "Thực tiễn",
+          "definition": "Toàn bộ hoạt động vật chất - cảm tính có mục đích, mang tính lịch sử - xã hội của con người."
+        }
+      ]
+    },
+    {
+      "part": 3,
+      "game": "quiz",
+      "items": [
+        {
+          "id": "p3_1",
+          "q": "Theo Lênin, thuộc tính cơ bản nhất của vật chất để phân biệt với ý thức là gì?",
+          "options": ["Tính có thể nhận thức được", "Tồn tại khách quan", "Tính luôn luôn biến đổi", "Có khối lượng và kích thước"],
+          "answer": 1
+        },
+        {
+          "id": "p3_2",
+          "q": "Hình thức vận động nào là cao nhất theo quan điểm triết học Mác - Lênin?",
+          "options": ["Vận động cơ học", "Vận động sinh học", "Vận động xã hội", "Vận động hóa học"],
+          "answer": 2
+        },
+        {
+          "id": "p3_3",
+          "q": "Nguồn gốc tự nhiên của ý thức bao gồm những yếu tố nào?",
+          "options": ["Bộ óc người và thế giới khách quan tác động lên bộ óc", "Lao động và ngôn ngữ", "Hoạt động thực nghiệm khoa học", "Quan hệ sản xuất xã hội"],
+          "answer": 0
+        },
+        {
+          "id": "p3_4",
+          "q": "Quy luật nào vạch ra nguồn gốc và động lực của sự vận động, phát triển?",
+          "options": ["Quy luật mâu thuẫn", "Quy luật lượng - chất", "Quy luật phủ định của phủ định", "Quy luật nhân quả"],
+          "answer": 0
+        },
+        {
+          "id": "p3_5",
+          "q": "Hoạt động thực tiễn cơ bản và quan trọng nhất của con người là gì?",
+          "options": ["Hoạt động chính trị - xã hội", "Sản xuất vật chất", "Thực nghiệm khoa học", "Sáng tạo nghệ thuật"],
+          "answer": 1
+        }
+      ]
+    }
+  ]
+}

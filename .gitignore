@@ -1,0 +1,15 @@
+# Môi trường và khóa API bí mật (Tuyệt đối không commit)
+.env
+*.env
+st.secrets
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Dữ liệu tạm thời và cache
+cache/
+scratch/
+temp/
