@@ -1,0 +1,37 @@
+{
+  "subject": "english",
+  "chapter_title": "Unit 3: Travel",
+  "parts": [
+    {
+      "part": 1,
+      "game": "fill_blank",
+      "items": [
+        {
+          "id": "p1-01",
+          "sentence": "She ___ to Paris last year.",
+          "answer": "went"
+        },
+        {
+          "id": "p1-02",
+          "sentence": "We ___ our flight because of the storm.",
+          "answer": "missed"
+        },
+        {
+          "id": "p1-03",
+          "sentence": "Please show your ___ at the check-in counter.",
+          "answer": "passport"
+        },
+        {
+          "id": "p1-04",
+          "sentence": "He packed his ___ and left for the airport.",
+          "answer": "suitcase"
+        },
+        {
+          "id": "p1-05",
+          "sentence": "The train ___ at 8 a.m. every day.",
+          "answer": "departs"
+        }
+      ]
+    }
+  ]
+}

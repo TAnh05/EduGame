@@ -1,0 +1,37 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Chương 3: Phép biện chứng duy vật",
+  "parts": [
+    {
+      "part": 1,
+      "game": "fill_blank",
+      "items": [
+        {
+          "id": "p1-01",
+          "sentence": "Nguyên lý về sự phát triển cho rằng thế giới luôn ___ và phát triển không ngừng.",
+          "answer": "vận động"
+        },
+        {
+          "id": "p1-02",
+          "sentence": "Quy luật chuyển hóa từ những thay đổi về lượng thành những thay đổi về ___ chỉ ra cách thức của sự phát triển.",
+          "answer": "chất"
+        },
+        {
+          "id": "p1-03",
+          "sentence": "Quy luật thống nhất và đấu tranh của các mặt đối lập chỉ ra ___ và động lực của sự vận động, phát triển.",
+          "answer": "nguồn gốc"
+        },
+        {
+          "id": "p1-04",
+          "sentence": "Quy luật phủ định của phủ định chỉ ra ___ của sự phát triển.",
+          "answer": "khuynh hướng"
+        },
+        {
+          "id": "p1-05",
+          "sentence": "Mâu thuẫn biện chứng là sự thống nhất và ___ giữa các mặt đối lập.",
+          "answer": "đấu tranh"
+        }
+      ]
+    }
+  ]
+}
