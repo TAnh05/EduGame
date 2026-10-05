@@ -116,11 +116,16 @@ def get_vintern_model(cfg: ModelConfig):
         return _GLOBAL_MODEL, _GLOBAL_TOKENIZER
 
     from transformers import AutoModel, AutoTokenizer
+    from transformers.modeling_utils import PreTrainedModel
+    
+    # Patch for transformers >= 5.x or 4.40+ with custom models
+    if not hasattr(PreTrainedModel, 'all_tied_weights_keys'):
+        PreTrainedModel.all_tied_weights_keys = {}
 
     device = cfg.device
     dtype = cfg.torch_dtype
 
-    print(f"[Vintern] Đang tải mô hình {cfg.model_name_or_path} trên thiết bị {device} ({dtype})...")
+    print(f"[Vintern] Dang tai mo hinh {cfg.model_name_or_path} tren thiet bi {device} ({dtype})...")
     
     tokenizer = AutoTokenizer.from_pretrained(
         cfg.model_name_or_path, 
@@ -143,7 +148,7 @@ def get_vintern_model(cfg: ModelConfig):
 
     _GLOBAL_MODEL = model
     _GLOBAL_TOKENIZER = tokenizer
-    print("[Vintern] Tải mô hình thành công.")
+    print("[Vintern] Tai mo hinh thanh cong.")
     return _GLOBAL_MODEL, _GLOBAL_TOKENIZER
 
 
@@ -286,7 +291,7 @@ def ocr_image_vintern(
 
         except torch.cuda.OutOfMemoryError:
             # Cơ chế chống tràn VRAM: dọn cache và hạ max_num
-            print(f"[Vintern Cảnh báo] Tràn VRAM với max_num={current_max_num}. Đang hạ max_num và thử lại...")
+            print(f"[Vintern Canh bao] Tran VRAM voi max_num={current_max_num}. Dang ha max_num va thu lai...")
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             
