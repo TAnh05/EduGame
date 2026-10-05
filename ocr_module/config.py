@@ -28,7 +28,7 @@ class PreprocessConfig:
     """Cấu hình các bước tiền xử lý ảnh (bật/tắt để đo ablation)."""
     enable_exif: bool = True             # Bước 1: Sửa góc quay theo EXIF
     enable_resize: bool = True           # Bước 2: Giới hạn kích thước ảnh
-    max_dimension: int = 2200            # Cạnh dài tối đa (px)
+    max_dimension: int = 1600            # Cạnh dài tối đa (px) (Giảm từ 2200 xuống 1600 để tăng tốc)
     
     enable_quality_check: bool = True    # Bước 3: Đo và cảnh báo chất lượng
     
@@ -57,7 +57,7 @@ class ModelConfig:
     
     # Tham số thị giác InternVL
     input_size: int = 448
-    max_num: int = 4                     # Số ô ảnh (tile) tối đa: 4 ô cân đối tốt giữa VRAM 4GB và độ chi tiết
+    max_num: int = 2                     # Số ô ảnh (tile) tối đa: giảm xuống 2 (từ 4) để tăng gấp đôi tốc độ suy luận
     min_num: int = 1
     
     # Tham số sinh
@@ -78,7 +78,7 @@ class ModelConfig:
 class StripSplittingConfig:
     """Cấu hình cắt dải ảnh đối với tài liệu dày chữ vượt ngưỡng token."""
     enable_strip_splitting: bool = True
-    split_height_threshold: int = 1800    # Nếu chiều cao sau tiền xử lý > 1800px thì cân nhắc cắt
+    split_height_threshold: int = 2400    # Tăng ngưỡng cắt dải lên 2400px để hạn chế chia nhỏ nhiều lần gây chậm
     strip_target_lines: int = 15
     overlap_margin_px: int = 60          # Vùng đè nhau giữa 2 dải liên tiếp để tránh đứt dòng
 
