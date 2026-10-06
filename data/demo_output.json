@@ -1,0 +1,55 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Chương 1: Triết học Mác - Lênin",
+  "parts": [
+    {
+      "part": 1,
+      "game": "fill_blank",
+      "items": [
+        {
+          "id": "p1-01",
+          "sentence": "Vật chất là phạm trù triết học chỉ ___ khách quan.",
+          "answer": "thực tại"
+        },
+        {
+          "id": "p1-02",
+          "sentence": "Ý thức là hình ảnh chủ quan của thế giới ___.",
+          "answer": "khách quan"
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "game": "matching",
+      "items": [
+        {
+          "id": "p2-01",
+          "term": "Vật chất",
+          "definition": "Thực tại khách quan độc lập với ý thức"
+        },
+        {
+          "id": "p2-02",
+          "term": "Vận động",
+          "definition": "Phương thức tồn tại của vật chất"
+        }
+      ]
+    },
+    {
+      "part": 3,
+      "game": "quiz",
+      "items": [
+        {
+          "id": "p3-01",
+          "q": "Phương thức tồn tại của vật chất là gì?",
+          "options": [
+            "Đứng im",
+            "Cảm giác",
+            "Ý chí",
+            "Vận động"
+          ],
+          "answer": 3
+        }
+      ]
+    }
+  ]
+}

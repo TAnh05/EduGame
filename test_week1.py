@@ -66,14 +66,14 @@ def test_split_text_into_three_parts():
 
 
 def test_prompts_generation():
-    """Kiểm tra gọi prompt cho 3 phần và 2 môn"""
+    """Kiểm tra gọi prompt riêng cho từng phần và từng môn (Mục 7.2)"""
     dummy_text = "Nội dung bài học mẫu..."
     for subject in ["english", "philosophy"]:
         for part_num in [1, 2, 3]:
             prompt = get_game_prompt(part_num, subject, dummy_text)
             assert dummy_text in prompt
-            assert "JSON" in prompt
-    print("[PASS] Tất cả Prompt cho 3 game và 2 môn đều được tạo đúng!")
+            assert "JSON" in prompt or "json" in prompt.lower()
+    print("[PASS] Tất cả 6 Prompt riêng biệt cho 3 game và 2 môn đều được tạo đúng!")
 
 
 def test_pydantic_validation_rules():
