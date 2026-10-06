@@ -1,0 +1,216 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Triết học Mác – Lênin: ôn tập tổng hợp",
+  "parts": [
+    {
+      "part": 1,
+      "game": "fill_blank",
+      "items": [
+        {
+          "id": "p1-01",
+          "sentence": "Yếu tố động nhất, cách mạng nhất trong lực lượng sản xuất là ___.",
+          "answer": "công cụ lao động"
+        },
+        {
+          "id": "p1-02",
+          "sentence": "Theo triết học Mác – Lênin, khuynh hướng của sự phát triển đi theo đường ___.",
+          "answer": "xoáy trôn ốc"
+        },
+        {
+          "id": "p1-03",
+          "sentence": "Triết học không phải toàn bộ thế giới quan mà chỉ là ___ lý luận chung nhất của thế giới quan.",
+          "answer": "hạt nhân"
+        },
+        {
+          "id": "p1-04",
+          "sentence": "Vận động là tuyệt đối, còn đứng im là ___ và tạm thời.",
+          "answer": "tương đối"
+        },
+        {
+          "id": "p1-05",
+          "sentence": "Lực lượng sản xuất bao gồm tư liệu sản xuất và ___.",
+          "answer": "người lao động"
+        },
+        {
+          "id": "p1-06",
+          "sentence": "Chất là tính quy định ___ vốn có của sự vật.",
+          "answer": "khách quan"
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "game": "matching",
+      "items": [
+        {
+          "id": "p2-01",
+          "term": "Duy tâm chủ quan",
+          "definition": "Vật chất là kết quả tổng hợp cảm giác của con người"
+        },
+        {
+          "id": "p2-02",
+          "term": "Duy tâm khách quan",
+          "definition": "Vật chất là sản phẩm của ý niệm tuyệt đối"
+        },
+        {
+          "id": "p2-03",
+          "term": "Duy vật biện chứng",
+          "definition": "Vật chất là thực tại khách quan tồn tại độc lập với ý thức con người"
+        },
+        {
+          "id": "p2-04",
+          "term": "Duy vật tự phát",
+          "definition": "Vật chất là các sự vật, hiện tượng cụ thể"
+        },
+        {
+          "id": "p2-05",
+          "term": "Duy vật siêu hình",
+          "definition": "Nguồn gốc của vận động nằm bên ngoài sự vật, do sự tương tác hoặc tác động từ ngoài"
+        },
+        {
+          "id": "p2-06",
+          "term": "Quan hệ sản xuất",
+          "definition": "Quan hệ giữa người với người trong sở hữu tư liệu sản xuất, tổ chức phân công lao động và phân phối sản phẩm"
+        }
+      ]
+    },
+    {
+      "part": 3,
+      "game": "quiz",
+      "items": [
+        {
+          "id": "p3-01",
+          "q": "Nguồn gốc tự nhiên của ý thức là gì?",
+          "options": [
+            "Sự xuất hiện con người và sự hình thành bộ óc người có năng lực phản ánh hiện thực khách quan.",
+            "Ý thức có nguồn gốc siêu nhiên, là sản phẩm tinh thần đặc biệt do tạo hóa tạo ra.",
+            "Ý thức có nguồn gốc tự nhiên ở mọi dạng vật chất, như gan tiết ra mật, cây sinh ra quả.",
+            "Ý thức không có nguồn gốc bên ngoài con người mà chỉ là tổng hợp các cảm giác của cá nhân."
+          ],
+          "answer": 0
+        },
+        {
+          "id": "p3-02",
+          "q": "Phương án nào nói đúng về vai trò của ý thức?",
+          "options": [
+            "Ý thức tự nó làm thay đổi tư tưởng, hoàn toàn không có tác dụng đối với hoạt động thực tiễn.",
+            "Ý thức phản ánh sáng tạo thực tại khách quan và tác động trở lại mạnh mẽ thực tại đó thông qua hoạt động thực tiễn của con người.",
+            "Ý thức phụ thuộc vào nguồn gốc sinh ra nó nên chỉ có vật chất mới năng động, tích cực.",
+            "Ý thức quyết định vật chất, còn vật chất chỉ là cái thụ động."
+          ],
+          "answer": 1
+        },
+        {
+          "id": "p3-03",
+          "q": "Phương án nào đúng về sự phát triển theo quan niệm duy vật biện chứng?",
+          "options": [
+            "Đặc trưng của phát triển là sự ra đời của chất mới ở trình độ cao hơn; nguồn gốc của phát triển là sự đấu tranh giữa các mặt đối lập.",
+            "Phát triển chỉ có trong lĩnh vực xã hội, còn trong tự nhiên mọi sự thay đổi chỉ tuần hoàn, lặp lại.",
+            "Phát triển chỉ là sự tăng lên về số lượng, không có sự thay đổi về chất.",
+            "Mỗi cái mới xuất hiện đều là biểu hiện của sự phát triển."
+          ],
+          "answer": 0
+        },
+        {
+          "id": "p3-04",
+          "q": "Phương án nào SAI về quan hệ giữa chất và lượng theo quan niệm duy vật biện chứng?",
+          "options": [
+            "Chất và lượng của sự vật đều tồn tại khách quan.",
+            "Không có chất hay lượng thuần túy tồn tại bên ngoài sự vật.",
+            "Sự phân biệt giữa chất và lượng phụ thuộc vào ý chí của con người.",
+            "Sự phân biệt giữa chất và lượng của sự vật chỉ có tính tương đối."
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-05",
+          "q": "Quan điểm nào SAI về thực tiễn?",
+          "options": [
+            "Thực tiễn là nguồn gốc của nhận thức vì qua thực tiễn bộc lộ các thuộc tính, mối liên hệ bản chất của đối tượng.",
+            "Thực tiễn là kết quả của nhận thức, trong đó sự phân tích lý luận là cơ bản nhất.",
+            "Thực tiễn là động lực của nhận thức, đòi hỏi tư duy con người phải giải đáp những vấn đề đặt ra.",
+            "Thực tiễn là tiêu chuẩn của chân lý; nhận thức đúng hay sai không chỉ được xác định trong bản thân nhận thức."
+          ],
+          "answer": 1
+        },
+        {
+          "id": "p3-06",
+          "q": "Phương án nào đúng về mối quan hệ biện chứng giữa lượng và chất?",
+          "options": [
+            "Sự vật nào cũng có sự thống nhất giữa lượng và chất; sự biến đổi về lượng dần dần vượt quá giới hạn độ sẽ dẫn đến sự biến đổi về chất.",
+            "Biến đổi về chất và lượng không có mâu thuẫn, chỉ khác nhau ở chỗ lượng biến đổi nhanh hơn chất.",
+            "Sự biến đổi về chất nhanh hơn sự biến đổi về lượng thì mới tạo ra thay đổi căn bản về chất.",
+            "Chỉ có sự thay đổi từ lượng đến chất là theo xu hướng tiến lên, còn từ chất đến lượng là ngược lại."
+          ],
+          "answer": 0
+        },
+        {
+          "id": "p3-07",
+          "q": "Chọn phương án đúng về tồn tại xã hội và ý thức xã hội.",
+          "options": [
+            "Tồn tại xã hội là toàn bộ yếu tố vật chất và tinh thần mà xã hội dựa vào để tồn tại và phát triển.",
+            "Tồn tại xã hội phụ thuộc vào ý thức xã hội.",
+            "Ý thức xã hội có tính độc lập tương đối so với tồn tại xã hội.",
+            "Ý thức xã hội luôn luôn vượt trước so với tồn tại xã hội."
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-08",
+          "q": "Theo triết học Mác – Lênin, khuynh hướng của sự phát triển đi theo con đường nào?",
+          "options": [
+            "Vòng tròn khép kín.",
+            "Đường thẳng tắp.",
+            "Đường xoáy trôn ốc.",
+            "Đường dích dắc từ thấp đến cao."
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-09",
+          "q": "Phương án nào SAI về bản chất của ý thức?",
+          "options": [
+            "Ý thức là hình ảnh chủ quan của thế giới khách quan.",
+            "Ý thức là quá trình phản ánh thế giới thực tại khách quan vào bộ não người.",
+            "Phản ánh ý thức mang tính tích cực, chủ động, sáng tạo lại hiện thực khách quan.",
+            "Ý thức hình thành ở mỗi cá nhân nên mang bản chất cá nhân."
+          ],
+          "answer": 3
+        },
+        {
+          "id": "p3-10",
+          "q": "Trong lịch sử có bao nhiêu hình thức cơ bản của chủ nghĩa duy vật?",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-11",
+          "q": "Lực lượng sản xuất bao gồm những yếu tố nào?",
+          "options": [
+            "Người lao động và công cụ lao động.",
+            "Người lao động và trình độ lao động của họ.",
+            "Tư liệu sản xuất và các nguồn lực tự nhiên.",
+            "Tư liệu sản xuất và người lao động."
+          ],
+          "answer": 3
+        },
+        {
+          "id": "p3-12",
+          "q": "Theo phép biện chứng duy vật, cơ sở của các mối liên hệ trong sự vật, hiện tượng là gì?",
+          "options": [
+            "Tính thống nhất vật chất của thế giới.",
+            "Các hiện tượng bên ngoài có tính ngẫu nhiên.",
+            "Ý niệm về sự thống nhất của thế giới.",
+            "Ý thức, cảm giác của con người."
+          ],
+          "answer": 0
+        }
+      ]
+    }
+  ]
+}

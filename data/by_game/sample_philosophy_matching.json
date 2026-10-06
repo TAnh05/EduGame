@@ -1,0 +1,42 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Triết học Mác – Lênin: ôn tập tổng hợp",
+  "parts": [
+    {
+      "part": 2,
+      "game": "matching",
+      "items": [
+        {
+          "id": "p2-01",
+          "term": "Duy tâm chủ quan",
+          "definition": "Vật chất là kết quả tổng hợp cảm giác của con người"
+        },
+        {
+          "id": "p2-02",
+          "term": "Duy tâm khách quan",
+          "definition": "Vật chất là sản phẩm của ý niệm tuyệt đối"
+        },
+        {
+          "id": "p2-03",
+          "term": "Duy vật biện chứng",
+          "definition": "Vật chất là thực tại khách quan tồn tại độc lập với ý thức con người"
+        },
+        {
+          "id": "p2-04",
+          "term": "Duy vật tự phát",
+          "definition": "Vật chất là các sự vật, hiện tượng cụ thể"
+        },
+        {
+          "id": "p2-05",
+          "term": "Duy vật siêu hình",
+          "definition": "Nguồn gốc của vận động nằm bên ngoài sự vật, do sự tương tác hoặc tác động từ ngoài"
+        },
+        {
+          "id": "p2-06",
+          "term": "Quan hệ sản xuất",
+          "definition": "Quan hệ giữa người với người trong sở hữu tư liệu sản xuất, tổ chức phân công lao động và phân phối sản phẩm"
+        }
+      ]
+    }
+  ]
+}

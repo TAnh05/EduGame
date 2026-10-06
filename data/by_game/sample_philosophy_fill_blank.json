@@ -1,0 +1,42 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Triết học Mác – Lênin: ôn tập tổng hợp",
+  "parts": [
+    {
+      "part": 1,
+      "game": "fill_blank",
+      "items": [
+        {
+          "id": "p1-01",
+          "sentence": "Yếu tố động nhất, cách mạng nhất trong lực lượng sản xuất là ___.",
+          "answer": "công cụ lao động"
+        },
+        {
+          "id": "p1-02",
+          "sentence": "Theo triết học Mác – Lênin, khuynh hướng của sự phát triển đi theo đường ___.",
+          "answer": "xoáy trôn ốc"
+        },
+        {
+          "id": "p1-03",
+          "sentence": "Triết học không phải toàn bộ thế giới quan mà chỉ là ___ lý luận chung nhất của thế giới quan.",
+          "answer": "hạt nhân"
+        },
+        {
+          "id": "p1-04",
+          "sentence": "Vận động là tuyệt đối, còn đứng im là ___ và tạm thời.",
+          "answer": "tương đối"
+        },
+        {
+          "id": "p1-05",
+          "sentence": "Lực lượng sản xuất bao gồm tư liệu sản xuất và ___.",
+          "answer": "người lao động"
+        },
+        {
+          "id": "p1-06",
+          "sentence": "Chất là tính quy định ___ vốn có của sự vật.",
+          "answer": "khách quan"
+        }
+      ]
+    }
+  ]
+}
