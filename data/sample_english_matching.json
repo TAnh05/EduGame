@@ -1,0 +1,42 @@
+{
+  "subject": "english",
+  "chapter_title": "Unit 3: Travel",
+  "parts": [
+    {
+      "part": 2,
+      "game": "matching",
+      "items": [
+        {
+          "id": "p2-01",
+          "term": "luggage",
+          "definition": "hành lý"
+        },
+        {
+          "id": "p2-02",
+          "term": "passport",
+          "definition": "hộ chiếu"
+        },
+        {
+          "id": "p2-03",
+          "term": "ticket",
+          "definition": "vé"
+        },
+        {
+          "id": "p2-04",
+          "term": "departure",
+          "definition": "sự khởi hành"
+        },
+        {
+          "id": "p2-05",
+          "term": "destination",
+          "definition": "điểm đến"
+        },
+        {
+          "id": "p2-06",
+          "term": "souvenir",
+          "definition": "quà lưu niệm"
+        }
+      ]
+    }
+  ]
+}

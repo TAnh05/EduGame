@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Điền vào chỗ trống</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f7f7f7;color:#3c3c3c;font-family:"Segoe UI",Arial,sans-serif}
+.app{max-width:640px;margin:0 auto;padding:18px 16px 28px}
+.top{display:flex;align-items:center;gap:14px}
+.x{background:none;border:0;font-size:1.5rem;color:#afafaf;cursor:pointer}
+.bar{flex:1;height:16px;background:#e5e5e5;border-radius:99px;overflow:hidden}
+.bar div{height:100%;width:0;background:#58cc02;border-radius:99px;transition:width .3s}
+.sub{text-align:center;color:#777;font-size:.9rem;margin-top:18px}
+.owl{text-align:center;font-size:3.2rem;line-height:1.3}
+.q{text-align:center;font-size:1.6rem;font-weight:800;line-height:1.7;margin:.3rem 0 1.4rem}
+.blank{display:inline-block;min-width:110px;border-bottom:3px solid #afafaf;padding:0 .4rem;margin:0 .2rem}
+.opt{display:block;width:100%;text-align:left;font:inherit;font-weight:700;padding:.9rem 1.1rem;margin-bottom:12px;
+ background:#fff;border:2px solid #e5e5e5;border-bottom-width:4px;border-radius:14px;color:#3c3c3c;cursor:pointer}
+.opt.sel{background:#f1ffe3;border-color:#89e219}
+.opt.ok{background:#d7ffb8;border-color:#89e219;color:#58a700}
+.opt.bad{background:#ffdfe0;border-color:#ff9b9b;color:#ea2b2b}
+.opt:disabled{cursor:default}
+.fb{border-radius:14px;padding:12px 16px;font-weight:700;margin:6px 0 12px}
+.fb.ok{background:#d7ffb8;color:#58a700}.fb.bad{background:#ffdfe0;color:#ea2b2b}
+.act{display:block;width:100%;font:inherit;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#fff;
+ padding:.9rem;background:#58cc02;border:2px solid #46a302;border-bottom-width:4px;border-radius:14px;cursor:pointer}
+.act:disabled{background:#e5e5e5;border-color:#cfcfcf;color:#afafaf;cursor:default}
+.act.bad{background:#ff4b4b;border-color:#ea2b2b}
+.cnt{text-align:center;color:#999;font-size:.85rem;margin-top:10px}
+.rev{background:#ffdfe0;color:#ea2b2b;border-radius:14px;padding:10px 14px;margin-bottom:10px;font-weight:600}
+.row{display:flex;gap:10px;margin-top:14px}.row .act{flex:1}
+select{font:inherit;padding:6px;margin-top:10px;max-width:100%}
+.err{color:#ea2b2b;text-align:center;font-weight:700;margin-top:12px}
+</style></head><body><div class="app">
+<div class="top"><button class="x" id="quit" title="Làm lại">✕</button><div class="bar"><div id="prog"></div></div></div>
+<div style="text-align:center"><select id="file"></select></div>
+<div id="main"></div><div class="err" id="err"></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let game = null, title = "", i = 0, sel = null, last = null, res = null;
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)} : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || "Lỗi không xác định");
+  return j;
+}
+async function guard(fn) { try { $("#err").textContent = ""; await fn(); } catch (e) { $("#err").textContent = e.message; } }
+
+async function start(onlyIds) {
+  await guard(async () => {
+    const g = await api("/api/fill_blank/new", {file: $("#file").value, only_ids: onlyIds});
+    game = g; title = g.title; i = 0; sel = null; last = null; res = null; draw();
+  });
+}
+function draw() {
+  const n = game.questions.length;
+  $("#prog").style.width = (100 * (i + (last ? 1 : 0)) / n) + "%";
+  if (i >= n) return finish();
+  const q = game.questions[i], checked = !!last;
+  const word = sel !== null ? esc(q.options[sel].text) : "";
+  const col = checked ? (last.ok ? "#58a700" : "#ea2b2b") : "inherit";
+  let h = `<div class="sub">${esc(title)}</div><div class="owl">🦉</div>
+   <div class="q">${esc(q.before)}<span class="blank" style="color:${col}">${word}</span>${esc(q.after)}</div>`;
+  for (const o of q.options) {
+    let c = "opt";
+    if (checked) { if (o.idx === last.correct_idx) c += " ok"; else if (o.idx === sel) c += " bad"; }
+    else if (o.idx === sel) c += " sel";
+    h += `<button class="${c}" data-idx="${o.idx}" ${checked ? "disabled" : ""}>${esc(o.text)}</button>`;
+  }
+  if (checked) h += `<div class="fb ${last.ok ? "ok" : "bad"}">${last.ok ? "Chính xác! 🎉" : "Đáp án đúng: " + esc(last.correct_text)}</div>`;
+  h += `<button class="act ${checked && !last.ok ? "bad" : ""}" id="act" ${sel === null ? "disabled" : ""}>${checked ? "Continue" : "Check"}</button>
+   <div class="cnt">Câu ${i + 1} / ${n}</div>`;
+  $("#main").innerHTML = h;
+  document.querySelectorAll(".opt").forEach(b => b.onclick = () => { if (!last) { sel = +b.dataset.idx; draw(); } });
+  $("#act").onclick = act;
+}
+async function act() {
+  await guard(async () => {
+    if (!last) { last = await api("/api/fill_blank/check", {game_id: game.game_id, qid: game.questions[i].id, idx: sel}); }
+    else { i++; sel = null; last = null; }
+    draw();
+  });
+}
+async function finish() {
+  await guard(async () => {
+    res = await api("/api/fill_blank/result", {game_id: game.game_id});
+    let h = `<div class="owl">🏆</div><div class="q">Hoàn thành!<br>Điểm: ${res.score}/${res.total}</div>`;
+    for (const r of res.review.filter(r => !r.ok))
+      h += `<div class="rev">[${esc(r.id)}] ${esc(r.sentence)}<br>Bạn chọn: ${esc(r.chosen)} · Đúng: <b>${esc(r.correct)}</b></div>`;
+    h += `<div class="row"><button class="act" id="again">Chơi lại</button>`;
+    if (res.wrong.length) h += `<button class="act bad" id="redo">Ôn câu sai</button>`;
+    $("#main").innerHTML = h + "</div>";
+    $("#again").onclick = () => start();
+    if (res.wrong.length) $("#redo").onclick = () => start(res.wrong);
+  });
+}
+$("#quit").onclick = () => start();
+$("#file").onchange = () => start();
+guard(async () => {
+  const {files} = await api("/api/fill_blank/files");
+  if (!files.length) throw new Error("Không tìm thấy file *fill_blank*.json trong thư mục data/.");
+  $("#file").innerHTML = files.map(f => `<option>${esc(f)}</option>`).join("");
+  const pref = files.find(f => f.includes("philosophy")); if (pref) $("#file").value = pref;
+  await start();
+});
+</script></body></html>

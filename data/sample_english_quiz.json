@@ -1,0 +1,67 @@
+{
+  "subject": "english",
+  "chapter_title": "Unit 3: Travel",
+  "parts": [
+    {
+      "part": 3,
+      "game": "quiz",
+      "items": [
+        {
+          "id": "p3-01",
+          "q": "Which word means \"điểm đến\"?",
+          "options": [
+            "destination",
+            "departure",
+            "luggage",
+            "reservation"
+          ],
+          "answer": 0
+        },
+        {
+          "id": "p3-02",
+          "q": "We need to ___ a hotel room before the trip.",
+          "options": [
+            "catch",
+            "hold",
+            "book",
+            "pay"
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-03",
+          "q": "A person who visits a place for pleasure is a ___.",
+          "options": [
+            "pilot",
+            "driver",
+            "tourist",
+            "guide"
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-04",
+          "q": "Which is the past tense of \"fly\"?",
+          "options": [
+            "flied",
+            "flew",
+            "flown",
+            "flying"
+          ],
+          "answer": 1
+        },
+        {
+          "id": "p3-05",
+          "q": "Which document do you need to board a plane?",
+          "options": [
+            "A menu",
+            "A receipt",
+            "A library card",
+            "A boarding pass"
+          ],
+          "answer": 3
+        }
+      ]
+    }
+  ]
+}

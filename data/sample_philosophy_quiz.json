@@ -1,0 +1,67 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Chương 3: Phép biện chứng duy vật",
+  "parts": [
+    {
+      "part": 3,
+      "game": "quiz",
+      "items": [
+        {
+          "id": "p3-01",
+          "q": "Quy luật nào chỉ ra nguồn gốc, động lực của sự vận động, phát triển?",
+          "options": [
+            "Quy luật lượng - chất",
+            "Quy luật phủ định của phủ định",
+            "Quy luật thống nhất và đấu tranh của các mặt đối lập",
+            "Quy luật cung - cầu"
+          ],
+          "answer": 2
+        },
+        {
+          "id": "p3-02",
+          "q": "Quy luật phủ định của phủ định chỉ ra khuynh hướng nào của sự phát triển?",
+          "options": [
+            "Đi xuống",
+            "Tuần hoàn khép kín",
+            "Đứng yên",
+            "Đi lên theo đường xoáy ốc"
+          ],
+          "answer": 3
+        },
+        {
+          "id": "p3-03",
+          "q": "Cách làm nào phù hợp với nguyên tắc toàn diện?",
+          "options": [
+            "Xem xét sự vật trong nhiều mối liên hệ",
+            "Chỉ xét một mặt nổi bật",
+            "Tách sự vật khỏi môi trường",
+            "Chỉ dựa vào kinh nghiệm cũ"
+          ],
+          "answer": 0
+        },
+        {
+          "id": "p3-04",
+          "q": "Khi sự thay đổi về lượng đạt đến một giới hạn nhất định thì điều gì xảy ra?",
+          "options": [
+            "Không có gì thay đổi",
+            "Xảy ra bước nhảy về chất",
+            "Sự vật biến mất",
+            "Sự vật quay về trạng thái ban đầu"
+          ],
+          "answer": 1
+        },
+        {
+          "id": "p3-05",
+          "q": "Phủ định biện chứng có đặc điểm nào?",
+          "options": [
+            "Xóa bỏ hoàn toàn cái cũ",
+            "Chỉ do tác động từ bên ngoài",
+            "Mang tính khách quan và có kế thừa",
+            "Mang tính ngẫu hứng của con người"
+          ],
+          "answer": 2
+        }
+      ]
+    }
+  ]
+}

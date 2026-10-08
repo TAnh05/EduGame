@@ -1,0 +1,42 @@
+{
+  "subject": "philosophy",
+  "chapter_title": "Chương 3: Phép biện chứng duy vật",
+  "parts": [
+    {
+      "part": 2,
+      "game": "matching",
+      "items": [
+        {
+          "id": "p2-01",
+          "term": "Mối liên hệ phổ biến",
+          "definition": "Sự quy định, tác động qua lại giữa các sự vật, hiện tượng"
+        },
+        {
+          "id": "p2-02",
+          "term": "Phát triển",
+          "definition": "Quá trình vận động theo khuynh hướng đi lên, từ thấp đến cao"
+        },
+        {
+          "id": "p2-03",
+          "term": "Lượng",
+          "definition": "Tính quy định khách quan về quy mô, tốc độ, trình độ của sự vật"
+        },
+        {
+          "id": "p2-04",
+          "term": "Chất",
+          "definition": "Tính quy định khách quan vốn có, phân biệt sự vật này với sự vật khác"
+        },
+        {
+          "id": "p2-05",
+          "term": "Độ",
+          "definition": "Giới hạn mà sự thay đổi về lượng chưa làm thay đổi căn bản về chất"
+        },
+        {
+          "id": "p2-06",
+          "term": "Bước nhảy",
+          "definition": "Sự chuyển hóa về chất do sự thay đổi về lượng trước đó gây ra"
+        }
+      ]
+    }
+  ]
+}
