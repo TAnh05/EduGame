@@ -1,7 +1,4 @@
-
-# ==========================================
 # 1. PROMPTS DÀNH CHO PHẦN 1: ĐIỀN VÀO CHỖ TRỐNG (fill_blank)
-# ==========================================
 
 PROMPT_PART1_FILL_BLANK_PHILOSOPHY = """
 Bạn là chuyên gia giảng dạy Triết học Mác - Lênin.
@@ -9,7 +6,7 @@ Nhiệm vụ: Đọc kỹ đoạn văn bản dưới đây và trích xuất d�
 
 QUY TẮC BẮT BUỘC:
 1. CHỈ sử dụng nội dung có trong văn bản được cung cấp bên dưới, TUYỆT ĐỐI không bịa đặt kiến thức ngoài.
-2. Mỗi câu hỏi ('sentence') BẮT BUỘC phải chứa ĐÚNG MỘT ký hiệu '___' (ba dấu gạch dưới liên tiếp).
+2. Tạo từ 3 đến 5 câu hỏi ('sentence'), mỗi câu BẮT BUỘC phải chứa ĐÚNG MỘT ký hiệu '___' (ba dấu gạch dưới liên tiếp).
 3. 'answer' là từ/cụm từ chính xác cần điền vào chỗ '___', không được để rỗng.
 4. Trả về ĐÚNG định dạng JSON theo mẫu bên dưới, KHÔNG kèm bất kỳ lời chào hay giải thích nào.
 
@@ -43,7 +40,7 @@ Task: Read the provided text and extract data to create a "Fill in the Blank" ga
 
 STRICT RULES:
 1. ONLY use information from the provided text below. DO NOT make up information.
-2. Each 'sentence' MUST contain EXACTLY ONE blank denoted as '___' (three underscores).
+2. Generate 3 to 5 questions ('sentence'), each MUST contain EXACTLY ONE blank denoted as '___' (three underscores).
 3. 'answer' is the exact word/phrase that fills '___', non-empty.
 4. Return ONLY valid JSON matching the format below. No greetings or explanations.
 
@@ -72,9 +69,7 @@ INPUT TEXT:
 """
 
 
-# ==========================================
 # 2. PROMPTS DÀNH CHO PHẦN 2: NỐI TỪ / ĐỊNH NGHĨA (matching)
-# ==========================================
 
 PROMPT_PART2_MATCHING_PHILOSOPHY = """
 Bạn là chuyên gia giảng dạy Triết học Mác - Lênin.
@@ -82,8 +77,8 @@ Nhiệm vụ: Đọc kỹ đoạn văn bản dưới đây và trích xuất d�
 
 QUY TẮC BẮT BUỘC:
 1. CHỈ sử dụng nội dung có trong văn bản được cung cấp bên dưới, TUYỆT ĐỐI không lấy kiến thức bên ngoài.
-2. 'term' là tên khái niệm/phạm trù triết học (ngắn gọn, không rỗng).
-3. 'definition' là định nghĩa/ý nghĩa chính xác được nêu trong văn bản (không rỗng).
+2. Tạo từ 3 đến 5 cặp thuật ngữ ('term') và định nghĩa ('definition') bám sát văn bản.
+3. Cả 'term' và 'definition' đều không được để rỗng.
 4. Trả về ĐÚNG định dạng JSON theo mẫu bên dưới, KHÔNG kèm bất kỳ lời chào hay giải thích nào.
 
 CẤU TRÚC JSON YÊU CẦU:
@@ -116,8 +111,8 @@ Task: Read the provided text and extract data to create a "Matching" game.
 
 STRICT RULES:
 1. ONLY use terms and definitions found in the text below. DO NOT invent terms.
-2. 'term' is the keyword, vocabulary word, or grammar term (non-empty).
-3. 'definition' is the meaning, explanation, or Vietnamese translation (non-empty).
+2. Extract 3 to 5 pairs of 'term' and 'definition' from the text.
+3. Both 'term' and 'definition' MUST be non-empty.
 4. Return ONLY valid JSON matching the format below. No greetings or explanations.
 
 JSON STRUCTURE:
@@ -145,9 +140,7 @@ INPUT TEXT:
 """
 
 
-# ==========================================
 # 3. PROMPTS DÀNH CHO PHẦN 3: TRẮC NGHIỆM (quiz)
-# ==========================================
 
 PROMPT_PART3_QUIZ_PHILOSOPHY = """
 Bạn là chuyên gia giảng dạy Triết học Mác - Lênin.
@@ -155,7 +148,7 @@ Nhiệm vụ: Đọc kỹ đoạn văn bản dưới đây và soạn câu hỏi
 
 QUY TẮC BẮT BUỘC:
 1. CHỈ sử dụng nội dung có trong văn bản được cung cấp bên dưới, TUYỆT ĐỐI không bịa đặt.
-2. 'q' là câu hỏi lý thuyết rõ ràng, bám sát văn bản (không rỗng).
+2. Soạn từ 4 đến 6 câu hỏi lý thuyết ('q') bám sát văn bản (không rỗng).
 3. 'options' BẮT BUỘC có ĐÚNG 4 phương án lựa chọn dạng chuỗi (không để trống bất kỳ phương án nào).
 4. 'answer' là CHỈ SỐ SỐ NGUYÊN (0, 1, 2, hoặc 3) chỉ vị trí của đáp án đúng trong mảng 'options'.
 5. Trả về ĐÚNG định dạng JSON theo mẫu bên dưới, KHÔNG kèm bất kỳ lời chào hay giải thích nào.
@@ -202,7 +195,7 @@ Task: Read the provided text and create multiple-choice questions for a "Quiz" g
 
 STRICT RULES:
 1. ONLY base questions and answers on the provided text. DO NOT invent information.
-2. 'q' is the question string (non-empty).
+2. Create 4 to 6 questions ('q') based strictly on the text (non-empty).
 3. 'options' MUST contain EXACTLY 4 string choices (no empty choices).
 4. 'answer' MUST be an INTEGER index (0, 1, 2, or 3) representing the correct option's position in 'options'.
 5. Return ONLY valid JSON matching the format below. No greetings or explanations.
@@ -247,7 +240,7 @@ INPUT TEXT:
 def get_game_prompt(part_num: int, subject: str, text_part: str) -> str:
     """
     Hàm trả về prompt tương ứng cho từng phần (game) và môn học.
-    Mỗi phần nhận đúng 1/3 văn bản sạch đã được chia từ trước (Mục 7.2).
+    Mỗi phần nhận đúng 1/3 văn bản sạch đã được chia từ trước.
 
     - part_num = 1: fill_blank  (nhận phần 1 của văn bản)
     - part_num = 2: matching    (nhận phần 2 của văn bản)

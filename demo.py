@@ -1,11 +1,10 @@
 """
 demo.py
-Kịch bản demo trực quan dành cho Sang để trình chiếu trước nhóm:
-1. Mô phỏng đầu vào là đoạn văn bản học tập (Triết học / Tiếng Anh).
-2. Chạy pipeline chia 3 phần logic.
-3. Sinh dữ liệu câu hỏi cho 3 game (tự động phát hiện có API Key thật hay dùng chế độ demo mô phỏng).
-4. Kiểm tra Pydantic Schema.
-5. Xuất ra file data/sample_chapter.json để nhóm Game đọc trực tiếp.
+Kịch bản demo mô phỏng quy trình hoạt động của pipeline:
+1. Tiếp nhận văn bản học tập mẫu (Triết học / Tiếng Anh).
+2. Tự động phân đoạn nội dung thành 3 phần cho 3 dạng bài tập.
+3. Sinh câu hỏi và kiểm định Schema qua Pydantic.
+4. Xuất file JSON hoàn chỉnh để các module trò chơi sử dụng.
 """
 
 import os
@@ -45,13 +44,13 @@ def print_separator(title=""):
         print("=" * 60)
 
 def run_demo():
-    print_separator("DEMO MODULE AI & DỮ LIỆU - PHỤ TRÁCH: SANG")
-    print("▶ BƯỚC 1: TIẾP NHẬN ĐẦU VÀO TỪ TOÀN (VĂN BẢN SẠCH & MÔN HỌC)")
+    print_separator("DEMO PIPELINE SINH DỮ LIỆU CÂU HỎI & KIỂM ĐỊNH SCHEMA")
+    print("▶ BƯỚC 1: TIẾP NHẬN VĂN BẢN ĐẦU VÀO & MÔN HỌC")
     print(f"  • Môn học: 'philosophy' (Triết học)")
     print(f"  • Độ dài văn bản: {len(SAMPLE_TEXT_DEMO.strip())} ký tự")
     time.sleep(1)
 
-    print_separator("▶ BƯỚC 2: CHIA VĂN BẢN THÀNH 3 PHẦN CHO 3 GAME (MỤC 7.2)")
+    print_separator("▶ BƯỚC 2: PHÂN ĐOẠN VĂN BẢN CHO 3 TRÒ CHƠI")
     parts = split_text_into_three_parts(SAMPLE_TEXT_DEMO)
     for i, p in enumerate(parts, 1):
         print(f"  [Phần {i}]: {p[:65]}...")
@@ -104,7 +103,7 @@ def run_demo():
 
     print_separator("▶ BƯỚC 4: KẾT QUẢ ĐÃ ĐƯỢC THẨM ĐỊNH BỞI PYDANTIC (CHI TIẾT CÂU HỎI)")
     print(f"  • Môn: {chapter.subject.upper()} | Tiêu đề: {chapter.chapter_title}")
-    print("  • Pydantic Verification: [100% HỢP LỆ VỚI HỢP ĐỒNG MỤC 6.1 & 6.2]\n")
+    print("  • Pydantic Verification: [HỢP LỆ THEO SCHEMA]\n")
 
     # In chi tiết Game 1
     print("  --- [GAME 1: ĐIỀN VÀO CHỖ TRỐNG (fill_blank)] ---")
@@ -130,11 +129,11 @@ def run_demo():
 
     time.sleep(1)
 
-    print_separator("▶ BƯỚC 5: XUẤT FILE CHO NHÓM GAME DÙNG NGAY")
+    print_separator("▶ BƯỚC 5: XUẤT FILE HOÀN CHỈNH CHO CÁC MODULE TRÒ CHƠI")
     print("  ✓ Đã ghi dữ liệu thành công ra: data/demo_output.json")
-    print("  ✓ Cả nhóm có thể nạp trực tiếp file này vào các game của Thế Anh và Sơn Nguyễn!")
+    print("  ✓ Dữ liệu sẵn sàng nạp trực tiếp vào các module trò chơi (Điền từ, Nối từ, Trắc nghiệm)!")
     print("=" * 60)
-    print("DEMO HOÀN TẤT THÀNH CÔNG RỰC RỠ!\n")
+    print("DEMO HOÀN TẤT THÀNH CÔNG!\n")
 
 if __name__ == "__main__":
     run_demo()

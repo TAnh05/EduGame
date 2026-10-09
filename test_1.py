@@ -1,8 +1,8 @@
 """
-test_week1.py
+test_1.py
 Kịch bản kiểm thử tự động (Unit Test) cho module kiểm tra Schema dữ liệu:
 1. Kiểm tra tính hợp lệ của file sample_chapter.json (Hợp đồng JSON).
-2. Kiểm tra khung Pydantic bắt lỗi chính xác theo Mục 6.2 của báo cáo.
+2. Kiểm tra khung Pydantic bắt lỗi chính xác theo hợp đồng JSON.
 3. Kiểm tra hàm loại bỏ Markdown code fence.
 4. Kiểm tra hàm chia văn bản làm 3 phần.
 5. Kiểm tra hàm lấy prompt cho 3 game và 2 môn học.
@@ -39,7 +39,7 @@ def test_sample_chapter_json_valid():
 
 
 def test_markdown_fence_stripping():
-    """Quy tắc 6.2: Loại bỏ markdown code fence trước khi parse"""
+    """Kiểm tra loại bỏ markdown code fence trước khi parse"""
     raw_markdown = """```json
     {
       "subject": "english",
@@ -57,7 +57,7 @@ def test_markdown_fence_stripping():
 
 
 def test_split_text_into_three_parts():
-    """Quy tắc 7.2: Chia văn bản thành 3 phần"""
+    """Kiểm tra chia văn bản thành 3 phần"""
     text = "Đoạn 1.\nĐoạn 2.\nĐoạn 3.\nĐoạn 4.\nĐoạn 5.\nĐoạn 6."
     parts = split_text_into_three_parts(text)
     assert len(parts) == 3
@@ -66,7 +66,7 @@ def test_split_text_into_three_parts():
 
 
 def test_prompts_generation():
-    """Kiểm tra gọi prompt riêng cho từng phần và từng môn (Mục 7.2)"""
+    """Kiểm tra gọi prompt riêng cho từng phần và từng môn"""
     dummy_text = "Nội dung bài học mẫu..."
     for subject in ["english", "philosophy"]:
         for part_num in [1, 2, 3]:
@@ -77,7 +77,7 @@ def test_prompts_generation():
 
 
 def test_pydantic_validation_rules():
-    """Kiểm tra khung Pydantic bắt đúng các lỗi theo đặc tả Mục 6.2"""
+    """Kiểm tra khung Pydantic bắt đúng các lỗi vi phạm hợp đồng dữ liệu"""
     # 1. Sai môn học (không phải english hoặc philosophy)
     bad_data = {
         "subject": "math",
@@ -106,7 +106,7 @@ def test_pydantic_validation_rules():
     with pytest.raises(ValidationError):
         validate_chapter_data(bad_quiz)
 
-    # 4. Sai game 3: answer vượt ngoài khoảng 0..3 (Mục 6.2)
+    # 4. Sai game 3: answer vượt ngoài khoảng 0..3
     bad_answer = bad_data.copy()
     bad_answer["subject"] = "philosophy"
     bad_answer["parts"][0]["items"][0]["sentence"] = "Câu có ___ đục lỗ"
@@ -125,5 +125,5 @@ if __name__ == "__main__":
     test_prompts_generation()
     test_pydantic_validation_rules()
     print("\n==========================================")
-    print("TẤT CẢ CÁC BÀI TEST TUẦN 1 CỦA SANG ĐÃ PASS 100%!")
+    print("TẤT CẢ BÀI TEST TRONG TEST_1 ĐÃ PASS!")
     print("==========================================")

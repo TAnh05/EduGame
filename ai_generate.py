@@ -1,21 +1,14 @@
 """
 ai_generate.py
-Module xử lý sinh dữ liệu câu hỏi ôn tập và kiểm tra Schema hợp đồng bằng Pydantic.
+Module xử lý trích xuất văn bản, sinh câu hỏi ôn tập bằng AI và thẩm định Schema JSON bằng Pydantic.
 
-Tuân thủ nghiêm ngặt các quy tắc trong Báo cáo kế hoạch & thiết kế hệ thống:
-- Mục 6.1: Cấu trúc hợp đồng JSON chapter.json
-- Mục 6.2: Quy tắc kiểm tra Pydantic & loại bỏ markdown fence
-- Mục 7.2: Trách nhiệm của Sang:
-    + Đầu vào: văn bản sạch (clean_text) và subject ('english' | 'philosophy')
-    + Đầu ra: chapter.json
-    + Chia văn bản thành 3 phần cho 3 game
-    + Dùng prompt riêng cho từng game (từ prompts.py)
-    + Yêu cầu AI chỉ dùng văn bản cung cấp và trả JSON
-    + Parse và kiểm tra Pydantic
-    + Cơ chế retry tối đa 2 lần khi AI trả JSON lỗi / sai schema
-    + Lưu kết quả ra file chapter.json
-    + Bảo mật: Quản lý API key qua .env (python-dotenv), không hardcode key trong mã nguồn
-- Mục 11 & TC08: Cơ chế fallback sang JSON mẫu dự phòng khi gặp lỗi bất khả kháng
+Quy trình xử lý:
+1. Đầu vào: Văn bản thô (clean_text) và tên môn học (subject: 'english' | 'philosophy').
+2. Tiền xử lý: Kiểm tra độ dài, cắt tỉa an toàn và phân đoạn thành 3 phần cho 3 game.
+3. Sinh dữ liệu: Tích hợp Gemini API với prompt chuyên biệt cho từng loại game.
+4. Thẩm định (Validation): Kiểm tra tính hợp lệ của cấu trúc JSON bằng Pydantic.
+5. Khả năng chịu lỗi: Cơ chế retry tối đa 2 lần khi dữ liệu sai format và fallback mẫu dự phòng.
+6. Đầu ra: Lưu kết quả chuẩn hóa ra file chapter.json phục vụ các module trò chơi.
 """
 
 import os
@@ -33,12 +26,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-# =====================================================================
-# 1. KHUNG KIỂM TRA PYDANTIC (PYDANTIC SCHEMA CONTRACT - MỤC 6.1 & 6.2)
-# =====================================================================
+# 1. KHUNG KIỂM TRA PYDANTIC
 
 class FillBlankItem(BaseModel):
-    """Quy tắc Game 1 (Mục 6.2): sentence chứa đúng 1 '___' và answer không rỗng"""
+    """Game 1: sentence chứa đúng 1 '___' và answer không rỗng"""
     id: str = Field(default="")
     sentence: str
     answer: str
@@ -62,7 +53,7 @@ class FillBlankItem(BaseModel):
 
 
 class MatchingItem(BaseModel):
-    """Quy tắc Game 2 (Mục 6.2): term và definition đều không rỗng"""
+    """Game 2: term và definition đều không rỗng"""
     id: str = Field(default="")
     term: str
     definition: str
@@ -83,7 +74,7 @@ class MatchingItem(BaseModel):
 
 
 class QuizItem(BaseModel):
-    """Quy tắc Game 3 (Mục 6.2): đúng 4 options, answer là số nguyên trong khoảng 0..3"""
+    """Game 3: đúng 4 options, answer là số nguyên trong khoảng 0..3"""
     id: str = Field(default="")
     q: str
     options: List[str]
@@ -149,7 +140,7 @@ class Part3Quiz(BaseModel):
 
 class ChapterModel(BaseModel):
     """
-    Hợp đồng JSON cấp cao nhất đại diện cho toàn bộ chapter.json (Mục 6.1)
+    Hợp đồng JSON cấp cao nhất đại diện cho toàn bộ chapter.json
     """
     subject: Literal["english", "philosophy"]
     chapter_title: str
@@ -182,13 +173,11 @@ class ChapterModel(BaseModel):
         return self
 
 
-# =====================================================================
-# 2. XỬ LÝ VĂN BẢN & LOẠI BỎ CODE FENCE (MỤC 6.2 & 7.2)
-# =====================================================================
+# 2. XỬ LÝ VĂN BẢN & LOẠI BỎ CODE FENCE
 
 def strip_markdown_fence(text: str) -> str:
     """
-    Quy tắc 6.2: Nếu AI trả code fence (```json ... ``` hoặc ``` ... ```),
+    Nếu AI trả code fence (```json ... ``` hoặc ``` ... ```),
     hệ thống loại bỏ fence trước khi parse JSON.
     """
     s = text.strip()
@@ -200,7 +189,7 @@ def strip_markdown_fence(text: str) -> str:
 
 def split_text_into_three_parts(text: str) -> List[str]:
     """
-    Quy tắc 7.2: Chia văn bản thành 3 phần logic cho 3 game.
+    Chia văn bản thành 3 phần logic cho 3 game.
     Tách theo các đoạn văn bản (paragraphs) để giữ nguyên ngữ cảnh.
     """
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
@@ -247,9 +236,9 @@ def load_chapter_from_file(file_path: str) -> ChapterModel:
     return ChapterModel(**data)
 
 
-def save_chapter_to_file(chapter: Union[ChapterModel, dict], file_path: str = "data/sample_chapter.json") -> None:
+def save_chapter_to_file(chapter: Union[ChapterModel, dict], file_path: str = "chapter.json") -> None:
     """
-    Quy tắc 7.2: Lưu kết quả ra file chapter.json theo đúng hợp đồng.
+    Lưu kết quả ra file chapter.json theo đúng hợp đồng.
     Tự động tạo thư mục cha nếu chưa tồn tại.
     """
     dir_name = os.path.dirname(file_path)
@@ -261,9 +250,45 @@ def save_chapter_to_file(chapter: Union[ChapterModel, dict], file_path: str = "d
         json.dump(data_to_dump, f, ensure_ascii=False, indent=2)
 
 
-# =====================================================================
-# 3. KẾT NỐI GEMINI API & CƠ CHẾ RETRY TỐI ĐA 2 LẦN (MỤC 7.2, 9, 11)
-# =====================================================================
+# 3. KẾT NỐI GEMINI API, XỬ LÝ LỖI & CA NGOẠI LỆ
+
+# Giới hạn độ dài văn bản để tiết kiệm chi phí & tránh timeout
+MIN_TEXT_LENGTH = 50         # Tối thiểu 50 ký tự (TC04: kiểm tra văn bản đủ dài)
+MAX_TEXT_LENGTH = 15000      # Tối đa 15.000 ký tự (TC06)
+
+
+class AIProcessingError(RuntimeError):
+    """Lỗi xử lý trong pipeline AI (thông báo tiếng Việt thân thiện theo Yêu cầu 2.2)"""
+    pass
+
+
+def validate_input_text(clean_text: str) -> str:
+    """
+    Kiểm tra tính hợp lệ của văn bản đầu vào theo các ca kiểm thử:
+    - TC05: File rỗng / văn bản rỗng
+    - TC04: Văn bản quá ngắn hoặc không đọc được
+    - TC06: Giới hạn độ dài văn bản quá lớn
+    """
+    if not clean_text or not clean_text.strip():
+        raise AIProcessingError("Lỗi (TC05): Văn bản đầu vào rỗng. Vui lòng cung cấp nội dung tài liệu học tập.")
+
+    text_stripped = clean_text.strip()
+    if len(text_stripped) < MIN_TEXT_LENGTH:
+        raise AIProcessingError(
+            f"Lỗi (TC04): Văn bản quá ngắn ({len(text_stripped)} ký tự < {MIN_TEXT_LENGTH} ký tự tối thiểu). "
+            "Không đủ nội dung để tạo 3 trò chơi ôn tập. Vui lòng tải tài liệu đầy đủ hơn."
+        )
+
+    # Giới hạn độ dài an toàn: Tự động cắt tỉa để tránh quá tải/hết quota
+    if len(text_stripped) > MAX_TEXT_LENGTH:
+        logger.warning(
+            f"Cảnh báo (TC06): Văn bản vượt quá giới hạn ({len(text_stripped)} > {MAX_TEXT_LENGTH} ký tự). "
+            "Hệ thống sẽ tự động cắt tỉa lấy đoạn đầu phù hợp để tiết kiệm quota API và tránh timeout."
+        )
+        text_stripped = text_stripped[:MAX_TEXT_LENGTH]
+
+    return text_stripped
+
 
 def call_gemini_api(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
     """
@@ -272,16 +297,20 @@ def call_gemini_api(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key or api_key.strip() == "" or "your_gemini_api_key_here" in api_key:
-        raise ValueError(
+        raise AIProcessingError(
             "Chưa cấu hình GEMINI_API_KEY hợp lệ trong file .env! "
             "Vui lòng thêm GEMINI_API_KEY=AIzaSy... vào .env trước khi gọi API."
         )
 
-    import google.generativeai as genai
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name)
-    response = model.generate_content(prompt)
-    return response.text
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        logger.error(f"Lỗi khi gọi Gemini API: {e}")
+        raise AIProcessingError(f"Lỗi kết nối Gemini API (TC08): {str(e)}")
 
 
 def parse_and_validate_part(part_num: int, raw_text: str) -> Union[Part1FillBlank, Part2Matching, Part3Quiz]:
@@ -289,7 +318,10 @@ def parse_and_validate_part(part_num: int, raw_text: str) -> Union[Part1FillBlan
     Loại bỏ code fence, parse JSON và kiểm tra schema Pydantic cho từng phần.
     """
     cleaned_json_str = strip_markdown_fence(raw_text)
-    data = json.loads(cleaned_json_str)
+    try:
+        data = json.loads(cleaned_json_str)
+    except json.JSONDecodeError as jde:
+        raise AIProcessingError(f"AI trả về dữ liệu không phải cú pháp JSON: {jde}")
 
     # Đảm bảo trường part và game khớp với phần đang xử lý
     if part_num == 1:
@@ -322,14 +354,7 @@ def generate_part_with_retry(
     custom_caller: Optional[Callable[[str], str]] = None
 ) -> Union[Part1FillBlank, Part2Matching, Part3Quiz]:
     """
-    Quy tắc 7.2 & 6.2: Gọi AI sinh dữ liệu cho từng phần; retry tối đa 2 lần nếu JSON sai hoặc không hợp lệ.
-    
-    Tham số:
-    - part_num: 1 (fill_blank), 2 (matching), hoặc 3 (quiz)
-    - subject: 'english' hoặc 'philosophy'
-    - text_part: 1/3 nội dung văn bản sạch tương ứng
-    - max_retries: Số lần thử lại tối đa khi lỗi (mặc định 2 lần theo báo cáo)
-    - custom_caller: Hàm gọi AI tùy chỉnh (dùng cho unit test / mock mà không cần tốn quota API)
+    Quy tắc nghiệp vụ: Gọi AI sinh dữ liệu cho từng phần; retry tối đa 2 lần nếu JSON sai hoặc không hợp lệ.
     """
     from prompts import get_game_prompt
 
@@ -354,8 +379,8 @@ def generate_part_with_retry(
                     f"[Part {part_num}] Đã thử lại tối đa {max_retries} lần nhưng vẫn thất bại: {e}"
                 )
 
-    raise RuntimeError(
-        f"Không thể sinh dữ liệu hợp lệ cho Phần {part_num} sau {max_retries} lần thử lại. Chi tiết lỗi: {last_error}"
+    raise AIProcessingError(
+        f"Không thể sinh dữ liệu hợp lệ cho Phần {part_num} sau {max_retries} lần thử lại (TC07). Chi tiết lỗi: {last_error}"
     )
 
 
@@ -366,26 +391,36 @@ def generate_chapter(
     output_path: str = "chapter.json",
     max_retries: int = 2,
     custom_caller: Optional[Callable[[str], str]] = None,
-    use_fallback_on_failure: bool = True
+    use_fallback_on_failure: bool = True,
+    use_cache: bool = True
 ) -> ChapterModel:
     """
-    Hàm tổng thể toàn bộ pipeline Tuần 2 của Sang (Mục 7.2):
-    1. Nhận clean_text và subject.
-    2. Chia văn bản thành 3 phần logic.
-    3. Dùng prompt riêng cho từng game, gọi AI có retry tối đa 2 lần.
-    4. Kiểm tra Pydantic toàn diện theo hợp đồng chapter.json (Mục 6.1, 6.2).
+    Hàm điều phối toàn bộ pipeline sinh câu hỏi ôn tập:
+    1. Kiểm tra văn bản đầu vào: rỗng (TC05), quá ngắn (TC04), quá dài (TC06).
+    2. Cơ chế Cache (F09): Nếu file output đã tồn tại và hợp lệ, nạp lại không gọi AI.
+    3. Chia 3 phần logic, gọi prompt với retry tối đa 2 lần (TC07).
+    4. Thẩm định Pydantic schema hợp đồng JSON.
     5. Lưu kết quả ra file chapter.json.
-    6. Nếu gặp lỗi bất khả kháng (API ngắt kết nối/hết quota) và use_fallback_on_failure=True,
-       sẽ nạp dữ liệu mẫu dự phòng theo Mục 11 & TC08.
+    6. Cơ chế Fallback an toàn (TC08): Nạp sample_chapter.json nếu API bị sự cố.
     """
     subject_norm = subject.strip().lower()
     if subject_norm not in ["english", "philosophy"]:
         raise ValueError("subject chỉ nhận giá trị 'english' hoặc 'philosophy'")
 
-    if not clean_text or not clean_text.strip():
-        raise ValueError("clean_text không được để trống")
+    # Kiểm tra ca biên của văn bản đầu vào (TC04, TC05, TC06)
+    valid_text = validate_input_text(clean_text)
 
-    parts_text = split_text_into_three_parts(clean_text)
+    # Cơ chế Cache (F09): Đọc JSON đã có để không tốn quota gọi lại
+    if use_cache and os.path.exists(output_path):
+        try:
+            cached_chapter = load_chapter_from_file(output_path)
+            if cached_chapter.subject == subject_norm:
+                logger.info(f"Đã tìm thấy cache hợp lệ tại {output_path}. Tái sử dụng để tiết kiệm API quota (F09).")
+                return cached_chapter
+        except Exception:
+            logger.warning(f"Cache tại {output_path} không hợp lệ, tiến hành gọi AI sinh mới.")
+
+    parts_text = split_text_into_three_parts(valid_text)
 
     try:
         part1 = generate_part_with_retry(1, subject_norm, parts_text[0], max_retries, custom_caller)
@@ -404,12 +439,80 @@ def generate_chapter(
 
     except Exception as e:
         logger.error(f"Lỗi trong quá trình sinh chapter: {e}")
-        # Mục 11 & TC08: Fallback sang JSON mẫu dự phòng khi API lỗi
+        # Fallback sang JSON mẫu dự phòng khi API lỗi (TC08)
         if use_fallback_on_failure:
             fallback_sample_path = os.path.join("data", "sample_chapter.json")
             if os.path.exists(fallback_sample_path):
-                logger.info(f"Kích hoạt cơ chế dự phòng: Tải dữ liệu từ {fallback_sample_path}")
+                logger.info(f"Kích hoạt cơ chế dự phòng (TC08): Tải dữ liệu mẫu từ {fallback_sample_path}")
                 fallback_chapter = load_chapter_from_file(fallback_sample_path)
                 save_chapter_to_file(fallback_chapter, output_path)
                 return fallback_chapter
         raise e
+
+
+# 4. HỖ TRỢ GAME CUỐI THEO TỶ LỆ 3-3-4
+
+def create_final_quiz_pool(chapter: ChapterModel, num_part1: int = 3, num_part2: int = 3, num_part3: int = 4) -> List[dict]:
+    """
+    Game cuối lấy ngẫu nhiên khoảng 10 câu theo tỷ lệ 3–3–4 từ ba phần
+    và chuyển sang dạng trắc nghiệm.
+    Việc ánh xạ item gốc sang quiz cuối cần lưu id nguồn hoặc thông tin phần/câu
+    để truy nguyên câu sai trong màn hình tổng kết.
+    """
+    import random
+
+    p1_items = chapter.parts[0].items
+    p2_items = chapter.parts[1].items
+    p3_items = chapter.parts[2].items
+
+    final_pool = []
+
+    # 1. Lấy từ Phần 1 (Điền từ -> Chuyển thành quiz với đáp án đúng là answer)
+    sample_p1 = random.sample(p1_items, min(num_part1, len(p1_items)))
+    all_answers_p1 = [it.answer for it in p1_items]
+    for it in sample_p1:
+        # Tạo distractors từ các câu khác trong cùng chương
+        distractors = [ans for ans in all_answers_p1 if ans != it.answer]
+        while len(distractors) < 3:
+            distractors.append(f"Lựa chọn khác {len(distractors) + 1}")
+        chosen_distractors = random.sample(distractors, 3)
+        options = [it.answer] + chosen_distractors
+        random.shuffle(options)
+        final_pool.append({
+            "source_part": 1,
+            "source_id": it.id,
+            "q": f"Điền từ vào chỗ trống: {it.sentence}",
+            "options": options,
+            "answer": options.index(it.answer)
+        })
+
+    # 2. Lấy từ Phần 2 (Nối từ -> Chuyển thành quiz hỏi định nghĩa của term)
+    sample_p2 = random.sample(p2_items, min(num_part2, len(p2_items)))
+    all_defs_p2 = [it.definition for it in p2_items]
+    for it in sample_p2:
+        distractors = [d for d in all_defs_p2 if d != it.definition]
+        while len(distractors) < 3:
+            distractors.append(f"Định nghĩa khác {len(distractors) + 1}")
+        chosen_distractors = random.sample(distractors, 3)
+        options = [it.definition] + chosen_distractors
+        random.shuffle(options)
+        final_pool.append({
+            "source_part": 2,
+            "source_id": it.id,
+            "q": f"Khái niệm '{it.term}' có định nghĩa là gì?",
+            "options": options,
+            "answer": options.index(it.definition)
+        })
+
+    # 3. Lấy từ Phần 3 (Quiz gốc)
+    sample_p3 = random.sample(p3_items, min(num_part3, len(p3_items)))
+    for it in sample_p3:
+        final_pool.append({
+            "source_part": 3,
+            "source_id": it.id,
+            "q": it.q,
+            "options": it.options,
+            "answer": it.answer
+        })
+
+    return final_pool

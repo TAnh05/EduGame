@@ -1,11 +1,11 @@
 """
-test_week2.py
-Kịch bản kiểm thử toàn diện cho các nhiệm vụ Tuần 2 của Sang:
-1. Kiểm tra cơ chế Retry tối đa 2 lần khi AI trả dữ liệu sai format (Mục 7.2 & 6.2).
+test_2.py
+Kịch bản kiểm thử tự động cho module sinh câu hỏi AI và cơ chế Retry:
+1. Kiểm tra cơ chế Retry tối đa 2 lần khi AI trả dữ liệu sai format.
 2. Kiểm tra việc bóc tách markdown code fence từ output AI.
 3. Kiểm tra kiểm định Pydantic schema cho từng game và toàn bộ chapter.
 4. Kiểm tra pipeline sinh chapter hoàn chỉnh từ văn bản và lưu ra file.
-5. Kiểm tra cơ chế Fallback mẫu dự phòng khi gặp sự cố API (Mục 11 & TC08).
+5. Kiểm tra cơ chế Fallback mẫu dự phòng khi gặp sự cố ngắt kết nối.
 """
 
 import os
@@ -33,9 +33,7 @@ from ai_generate import (
 )
 
 
-# =====================================================================
-# DỮ LIỆU MOCK PHỤC VỤ TEST TỰ ĐỘNG
-# =====================================================================
+# Dữ liệu mock phục vụ kiểm thử tự động
 
 MOCK_RAW_PART1_VALID = """```json
 {
@@ -85,9 +83,7 @@ MOCK_RAW_INVALID_SCHEMA = """```json
 ```"""
 
 
-# =====================================================================
-# TEST CASES
-# =====================================================================
+# Các ca kiểm thử
 
 def test_retry_success_after_first_failure():
     """Kiểm tra: Lần 1 trả JSON lỗi -> Lần 2 trả JSON chuẩn -> Thành công (1 lần retry)"""
@@ -207,20 +203,21 @@ def test_generate_chapter_end_to_end_and_save():
 
 
 def test_fallback_mechanism_when_api_disconnected():
-    """Kiểm tra Mục 11 & TC08: Khi API lỗi hoàn toàn, fallback tự động nạp sample_chapter.json"""
+    """Kiểm tra TC08: Khi API lỗi hoàn toàn, fallback tự động nạp sample_chapter.json"""
     def broken_caller(prompt):
         raise ConnectionError("Mất mạng hoặc API timeout!")
 
     test_out = os.path.join("data", "test_fallback_chapter.json")
 
     chapter = generate_chapter(
-        clean_text="Đoạn văn bản...",
+        clean_text="Đoạn văn bản mẫu kiểm tra cơ chế fallback dự phòng khi API bị ngắt kết nối.",
         subject="philosophy",
         chapter_title="Chương Test",
         output_path=test_out,
         max_retries=2,
         custom_caller=broken_caller,
-        use_fallback_on_failure=True
+        use_fallback_on_failure=True,
+        use_cache=False
     )
 
     assert chapter is not None
@@ -231,7 +228,7 @@ def test_fallback_mechanism_when_api_disconnected():
     if os.path.exists(test_out):
         os.remove(test_out)
 
-    print("[PASS] Cơ chế fallback dữ liệu dự phòng (Mục 11, TC08) hoạt động chính xác!")
+    print("[PASS] Cơ chế fallback dữ liệu dự phòng (TC08) hoạt động chính xác!")
 
 
 if __name__ == "__main__":
@@ -241,5 +238,5 @@ if __name__ == "__main__":
     test_generate_chapter_end_to_end_and_save()
     test_fallback_mechanism_when_api_disconnected()
     print("\n========================================================")
-    print("TẤT CẢ CÁC BÀI TEST TUẦN 2 CỦA SANG ĐÃ PASS HOÀN TOÀN 100%!")
+    print("TẤT CẢ BÀI TEST TRONG TEST_2 ĐÃ PASS!")
     print("========================================================")
