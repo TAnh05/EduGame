@@ -1,0 +1,46 @@
+{
+  "subject": "english",
+  "chapter_title": "Basic English",
+  "parts": [
+    {
+      "part": 1,
+      "game": "quiz",
+      "items": [
+        {
+          "id": "p1-01",
+          "q": "I ___ a student.",
+          "options": [
+            "am",
+            "is",
+            "are",
+            "be"
+          ],
+          "answer": 0
+        },
+        {
+          "id": "p1-02",
+          "q": "She ___ happy.",
+          "options": [
+            "am",
+            "is",
+            "are",
+            "be"
+          ],
+          "answer": 1
+        },
+        {
+          "id": "p1-03",
+          "q": "What is the plural of \"child\"?",
+          "options": [
+            "childs",
+            "children",
+            "childes",
+            "child"
+          ],
+          "answer": 1
+        }
+      ]
+    }
+  ]
+}
+```[cite: 1]
