@@ -39,7 +39,7 @@ select{font:inherit;padding:6px;margin-top:10px;max-width:100%}
 <script>
 const $ = s => document.querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let game = null, title = "", i = 0, sel = null, last = null, res = null;
+let game = null, title = "", queue = [], pos = 0, solved = 0, missed = new Set(), sel = null, last = null, res = null;
 
 async function api(path, body) {
   const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
@@ -53,17 +53,18 @@ async function guard(fn) { try { $("#err").textContent = ""; await fn(); } catch
 async function start(onlyIds) {
   await guard(async () => {
     const g = await api("/api/fill_blank/new", {file: $("#file").value, only_ids: onlyIds});
-    game = g; title = g.title; i = 0; sel = null; last = null; res = null; draw();
+    game = g; title = g.title; queue = g.questions.map((_, k) => k); pos = 0; solved = 0; missed = new Set();
+    sel = null; last = null; res = null; draw();
   });
 }
 function draw() {
   const n = game.questions.length;
-  $("#prog").style.width = (100 * (i + (last ? 1 : 0)) / n) + "%";
-  if (i >= n) return finish();
-  const q = game.questions[i], checked = !!last;
+  $("#prog").style.width = (100 * solved / n) + "%";
+  if (pos >= queue.length) return finish();      // hết hàng đợi = đã đúng hết
+  const q = game.questions[queue[pos]], checked = !!last;
   const word = sel !== null ? esc(q.options[sel].text) : "";
   const col = checked ? (last.ok ? "#58a700" : "#ea2b2b") : "inherit";
-  let h = `<div class="sub">${esc(title)}</div><div class="owl">🦉</div>
+  let h = `<div class="sub">${esc(title)}${missed.has(q.id) ? " · 🔁 Làm lại câu đã sai" : ""}</div><div class="owl">🦉</div>
    <div class="q">${esc(q.before)}<span class="blank" style="color:${col}">${word}</span>${esc(q.after)}</div>`;
   for (const o of q.options) {
     let c = "opt";
@@ -73,22 +74,28 @@ function draw() {
   }
   if (checked) h += `<div class="fb ${last.ok ? "ok" : "bad"}">${last.ok ? "Chính xác! 🎉" : "Đáp án đúng: " + esc(last.correct_text)}</div>`;
   h += `<button class="act ${checked && !last.ok ? "bad" : ""}" id="act" ${sel === null ? "disabled" : ""}>${checked ? "Continue" : "Check"}</button>
-   <div class="cnt">Câu ${i + 1} / ${n}</div>`;
+   <div class="cnt">Còn ${n - solved} câu</div>`;
   $("#main").innerHTML = h;
   document.querySelectorAll(".opt").forEach(b => b.onclick = () => { if (!last) { sel = +b.dataset.idx; draw(); } });
   $("#act").onclick = act;
 }
 async function act() {
   await guard(async () => {
-    if (!last) { last = await api("/api/fill_blank/check", {game_id: game.game_id, qid: game.questions[i].id, idx: sel}); }
-    else { i++; sel = null; last = null; }
+    const q = game.questions[queue[pos]];
+    if (!last) {
+      last = await api("/api/fill_blank/check", {game_id: game.game_id, qid: q.id, idx: sel});
+      if (last.ok) solved++; else missed.add(q.id);
+    } else {
+      if (!last.ok) queue.push(queue[pos]);        // sai thì xếp lại cuối hàng, làm đến khi đúng hết
+      pos++; sel = null; last = null;
+    }
     draw();
   });
 }
 async function finish() {
   await guard(async () => {
     res = await api("/api/fill_blank/result", {game_id: game.game_id});
-    let h = `<div class="owl">🏆</div><div class="q">Hoàn thành!<br>Điểm: ${res.score}/${res.total}</div>`;
+    let h = `<div class="owl">🏆</div><div class="q">Hoàn thành!<br>Đúng ngay lần đầu: ${res.score}/${res.total}</div>`;
     for (const r of res.review.filter(r => !r.ok))
       h += `<div class="rev">[${esc(r.id)}] ${esc(r.sentence)}<br>Bạn chọn: ${esc(r.chosen)} · Đúng: <b>${esc(r.correct)}</b></div>`;
     h += `<div class="row"><button class="act" id="again">Chơi lại</button>`;

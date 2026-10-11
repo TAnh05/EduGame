@@ -57,7 +57,10 @@ class FillBlankGame:
             raise ValueError("Dữ liệu điền chỗ trống không hợp lệ: " + "; ".join(problems))
         self.items = items
         self.id = uuid.uuid4().hex
-        self.chosen: dict[str, int] = {}      # id câu -> chỉ số lựa chọn đã chốt
+        self.first: dict[str, bool] = {}        # id câu -> đúng ngay lần đầu?
+        self.first_choice: dict[str, int] = {}  # id câu -> lựa chọn ở lần trả lời đầu
+        self.tries: dict[str, int] = {}         # id câu -> số lần đã trả lời
+        self.solved: set[str] = set()           # các câu đã trả lời đúng (ít nhất một lần)
         self.questions = self._build()
 
     def _build(self) -> list[dict]:
@@ -86,28 +89,33 @@ class FillBlankGame:
             for q in self.questions]}
 
     def check_one(self, qid: str, idx) -> dict:
-        """Chấm một câu khi người chơi bấm Check. Đã chốt rồi thì giữ lựa chọn cũ."""
+        """Chấm một câu khi bấm Check. Trả lời sai thì được làm lại; chỉ lần đầu tính điểm."""
         q = next((q for q in self.questions if q["id"] == qid), None)
         if q is None:
             raise ValueError("Câu hỏi không tồn tại.")
-        if qid not in self.chosen:
-            if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < len(q["options"]):
-                raise ValueError("Lựa chọn không hợp lệ.")
-            self.chosen[qid] = idx
-        return {"ok": self.chosen[qid] == q["correct"], "correct_idx": q["correct"],
-                "correct_text": q["options"][q["correct"]]}
+        if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < len(q["options"]):
+            raise ValueError("Lựa chọn không hợp lệ.")
+        ok = idx == q["correct"]
+        self.tries[qid] = self.tries.get(qid, 0) + 1
+        if qid not in self.first:               # chỉ lần trả lời đầu tiên được tính điểm
+            self.first[qid] = ok
+            self.first_choice[qid] = idx
+        if ok:
+            self.solved.add(qid)
+        return {"ok": ok, "correct_idx": q["correct"], "correct_text": q["options"][q["correct"]]}
 
     def result(self) -> dict:
-        """Kết quả cả ván, theo hợp đồng chung: score, total, wrong (+ review)."""
-        if len(self.chosen) != len(self.questions):
-            raise ValueError("Chưa trả lời hết các câu.")
+        """Kết quả cả ván (score/wrong tính theo lần trả lời đầu). Chỉ có khi đã làm đúng hết các câu."""
+        if len(self.solved) != len(self.questions):
+            raise ValueError("Chưa làm đúng hết các câu.")
         wrong, review = [], []
         for q in self.questions:
-            ok = self.chosen[q["id"]] == q["correct"]
+            ok = self.first[q["id"]]
             if not ok:
                 wrong.append(q["id"])
             review.append({"id": q["id"], "sentence": q["before"] + "___" + q["after"],
-                           "chosen": q["options"][self.chosen[q["id"]]],
-                           "correct": q["options"][q["correct"]], "ok": ok})
+                           "chosen": q["options"][self.first_choice[q["id"]]],
+                           "correct": q["options"][q["correct"]], "ok": ok,
+                           "tries": self.tries[q["id"]]})
         return {"score": len(self.questions) - len(wrong), "total": len(self.questions),
                 "wrong": wrong, "review": review}
