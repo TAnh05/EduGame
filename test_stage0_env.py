@@ -44,7 +44,7 @@ packages = [
     ("timm", "PyTorch Image Models (timm)"),
     ("accelerate", "Accelerate"),
     ("streamlit", "Streamlit"),
-    ("editdistance", "Editdistance"),
+    ("rapidfuzz", "RapidFuzz (CER fallback)"),
     ("pypdfium2", "PyPDFium2 (PDF support)"),
     ("pillow_heif", "Pillow-HEIF (iPhone HEIC support)"),
 ]
