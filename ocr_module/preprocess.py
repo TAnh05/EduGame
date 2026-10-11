@@ -199,8 +199,10 @@ def run_preprocessing_pipeline(
         img_bgr = mild_denoise(img_bgr)
         warnings.append("Đã áp dụng bộ lọc khử nhiễu nhẹ.")
 
-    # 7. Làm nét nhẹ (nếu ảnh hơi mờ và được cấu hình bật)
-    if prep_cfg.enable_sharpen or (metrics["blur"] < quality_cfg.blur_threshold):
+    # 7. Làm nét nhẹ chỉ khi được bật rõ ràng.
+    # Giữ cờ ablation trung thực: ảnh hơi mờ chỉ sinh cảnh báo ở quality.py,
+    # không được âm thầm thêm một transform vào cấu hình đang tắt sharpen.
+    if prep_cfg.enable_sharpen:
         img_bgr = mild_sharpen(img_bgr)
         warnings.append("Đã tăng cường độ sắc nét cho viền chữ.")
 

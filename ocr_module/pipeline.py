@@ -108,7 +108,10 @@ def run_pipeline(
                 return OCRResult(text="", ok=False, reason=f"Không thể đọc PDF: {exc}", warnings=initial_warnings)
             initial_warnings.append(f"Đang xử lý {len(images_to_process)} trang PDF, từ trang {pdf_start_page + 1}.")
         else:
-            img_pil, w = load_image_from_bytes(source, apply_exif=cfg.preprocess.enable_exif)
+            try:
+                img_pil, w = load_image_from_bytes(source, apply_exif=cfg.preprocess.enable_exif)
+            except (ValueError, OSError) as exc:
+                return OCRResult(text="", ok=False, reason=f"Không thể đọc ảnh: {exc}", warnings=initial_warnings)
             initial_warnings.extend(w)
             images_to_process.append(img_pil)
 
@@ -120,10 +123,13 @@ def run_pipeline(
                 return OCRResult(text="", ok=False, reason=f"Không thể đọc PDF: {exc}", warnings=initial_warnings)
             initial_warnings.append(f"Đang xử lý {len(images_to_process)} trang PDF, từ trang {pdf_start_page + 1}.")
         else:
-            with open(source, "rb") as f:
-                img_pil, w = load_image_from_bytes(f.read(), apply_exif=cfg.preprocess.enable_exif)
-                initial_warnings.extend(w)
-                images_to_process.append(img_pil)
+            try:
+                with open(source, "rb") as f:
+                    img_pil, w = load_image_from_bytes(f.read(), apply_exif=cfg.preprocess.enable_exif)
+            except (OSError, ValueError) as exc:
+                return OCRResult(text="", ok=False, reason=f"Không thể đọc ảnh: {exc}", warnings=initial_warnings)
+            initial_warnings.extend(w)
+            images_to_process.append(img_pil)
 
     elif isinstance(source, Image.Image):
         images_to_process.append(source)
