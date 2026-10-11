@@ -62,3 +62,4 @@ $RECYCLE.BIN/
 # Temporary test / user uploads (keep only default eval samples)
 temp/
 scratch/
+tests/.tmp/
