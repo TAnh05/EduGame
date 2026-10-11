@@ -48,6 +48,13 @@ def get_file_md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
+def invalidate_result(state: dict) -> None:
+    """Xóa kết quả không còn khớp với góc xoay hoặc cấu hình hiện tại."""
+    state["result"] = None
+    state["user_text"] = ""
+    state.pop("processing_time", None)
+
+
 def preview_processed_image(
     file_bytes: bytes, 
     rotation_deg: int, 
@@ -108,6 +115,7 @@ def main():
     st.caption("Chuyển ảnh sách vở, giáo trình sang văn bản chuẩn bị dữ liệu tạo câu hỏi ôn tập bằng game.")
 
     cfg = render_sidebar_configs()
+    cfg_signature = repr(cfg)
 
     # Hỗ trợ nhiều định dạng ảnh và file PDF scan
     allowed_types = ["jpg", "jpeg", "png", "webp"]
@@ -138,19 +146,32 @@ def main():
                 "rot": 0,
                 "result": None,
                 "user_text": "",
-                "file_name": f.name
+                "file_name": f.name,
+                "cfg_signature": cfg_signature,
             }
 
         state = st.session_state.ocr_states[file_key]
+        if state.get("cfg_signature") != cfg_signature:
+            invalidate_result(state)
+            state["cfg_signature"] = cfg_signature
 
         st.markdown(f"--- \n ### 📄 Tập tin #{file_idx + 1}: `{f.name}`")
 
         # Kiểm tra nếu là file PDF
         if f.name.lower().endswith(".pdf"):
-            st.info("Tập tin PDF phát hiện. Bấm 'Trích xuất toàn bộ trang' bên dưới để xử lý từng trang.")
+            st.info("Tập tin PDF phát hiện. Chọn phạm vi nhỏ để kiểm tra nhanh trước; toàn bộ trang có thể tốn nhiều thời gian và VRAM.")
+            pdf_start_page = int(st.number_input("Trang bắt đầu", min_value=1, value=1, step=1, key=f"pdf_start_{file_key}"))
+            pdf_all_pages = st.checkbox("Xử lý toàn bộ trang còn lại", value=True, key=f"pdf_all_{file_key}")
+            pdf_max_pages = None if pdf_all_pages else int(st.number_input("Số trang xử lý", min_value=1, value=1, step=1, key=f"pdf_count_{file_key}"))
             if st.button(f"🚀 Trích xuất text từ PDF: {f.name}", key=f"btn_pdf_{file_key}"):
                 with st.spinner("Đang xử lý từng trang của tài liệu PDF..."):
-                    res = run_pipeline(file_bytes, cfg=cfg, manual_rotation_deg=0)
+                    res = run_pipeline(
+                        file_bytes,
+                        cfg=cfg,
+                        manual_rotation_deg=0,
+                        pdf_start_page=pdf_start_page - 1,
+                        pdf_max_pages=pdf_max_pages,
+                    )
                     state["result"] = res
                     state["user_text"] = res.text
                     st.rerun()
@@ -186,14 +207,17 @@ def main():
             with btn_col1:
                 if st.button("↺ Xoay trái 90°", key=f"rot_left_{file_key}"):
                     state["rot"] = (state["rot"] - 90) % 360
+                    invalidate_result(state)
                     st.rerun()
             with btn_col2:
                 if st.button("↻ Xoay phải 90°", key=f"rot_right_{file_key}"):
                     state["rot"] = (state["rot"] + 90) % 360
+                    invalidate_result(state)
                     st.rerun()
             with btn_col3:
                 if st.button("🔄 Đặt lại góc 0°", key=f"rot_reset_{file_key}"):
                     state["rot"] = 0
+                    invalidate_result(state)
                     st.rerun()
 
         # Hiển thị thông số chất lượng đo được
@@ -213,14 +237,20 @@ def main():
         # Nút bấm kích hoạt trích xuất
         if st.button(f"🔍 Trích xuất văn bản", key=f"btn_ocr_{file_key}", type="primary"):
             with st.spinner("Đang chạy mô hình Vintern-1B v3.5 trích xuất văn bản..."):
+                import time
+                start_time = time.time()
                 res = run_pipeline(file_bytes, cfg=cfg, manual_rotation_deg=state["rot"])
+                end_time = time.time()
                 state["result"] = res
                 state["user_text"] = res.text
+                state["processing_time"] = round(end_time - start_time, 2)
                 st.rerun()
 
         # Hiển thị kết quả OCR và ô chỉnh sửa văn bản
         res: OCRResult = state.get("result")
         if res:
+            if "processing_time" in state:
+                st.info(f"⏱️ Thời gian xử lý: {state['processing_time']} giây (Không đẩy lên Git)")
             if not res.ok:
                 st.error(f"❌ Cổng chất lượng từ chối: {res.reason}")
             else:

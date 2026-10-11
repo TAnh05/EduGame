@@ -49,6 +49,9 @@ class PreprocessConfig:
 class ModelConfig:
     """Cấu hình nạp model và sinh văn bản Vintern-1B v3.5."""
     model_name_or_path: str = "5CD-AI/Vintern-1B-v3_5"
+    # Ghim commit/tag bất biến khi cần tái lập benchmark hoặc phát hành.
+    # None giữ hành vi hiện tại của Hugging Face (revision mặc định).
+    revision: str | None = None
     
     # Thiết bị và kiểu dữ liệu (tự chọn phù hợp với phần cứng)
     device: str = "cuda" if torch.cuda.is_available() else "cpu"

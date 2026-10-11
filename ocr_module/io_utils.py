@@ -9,7 +9,7 @@ Hỗ trợ:
 """
 
 import io
-from typing import Union, List
+from typing import Union, List, Optional
 import numpy as np
 from PIL import Image, ImageOps
 
@@ -78,7 +78,12 @@ def load_image_from_bytes(data: bytes, apply_exif: bool = True) -> tuple[Image.I
     return pil_img.convert("RGB"), warnings
 
 
-def load_images_from_pdf(pdf_bytes_or_path: Union[bytes, str], scale: float = 2.0) -> List[Image.Image]:
+def load_images_from_pdf(
+    pdf_bytes_or_path: Union[bytes, str],
+    scale: float = 2.0,
+    start_page: int = 0,
+    max_pages: Optional[int] = None,
+) -> List[Image.Image]:
     """
     Chuyển đổi từng trang của file PDF thành ảnh PIL với độ phân giải cao.
     `scale=2.0` tương đương khoảng 144 DPI (đủ rõ nét cho OCR).
@@ -86,11 +91,32 @@ def load_images_from_pdf(pdf_bytes_or_path: Union[bytes, str], scale: float = 2.
     if not PDF_AVAILABLE:
         raise RuntimeError("Thư viện pypdfium2 chưa được cài đặt. Vui lòng chạy: pip install pypdfium2")
 
+    if scale <= 0:
+        raise ValueError("scale phải lớn hơn 0.")
+    if start_page < 0:
+        raise ValueError("start_page không được âm.")
+    if max_pages is not None and max_pages <= 0:
+        raise ValueError("max_pages phải lớn hơn 0 nếu được đặt.")
+
     pdf = pdfium.PdfDocument(pdf_bytes_or_path)
-    images = []
-    for page_idx in range(len(pdf)):
-        page = pdf.get_page(page_idx)
-        bitmap = page.render(scale=scale)
-        pil_image = bitmap.to_pil()
-        images.append(pil_image.convert("RGB"))
-    return images
+    try:
+        total_pages = len(pdf)
+        if start_page >= total_pages:
+            raise ValueError(f"Trang bắt đầu {start_page + 1} vượt quá tài liệu chỉ có {total_pages} trang.")
+
+        end_page = total_pages if max_pages is None else min(total_pages, start_page + max_pages)
+        images: List[Image.Image] = []
+        for page_idx in range(start_page, end_page):
+            page = pdf.get_page(page_idx)
+            bitmap = None
+            try:
+                bitmap = page.render(scale=scale)
+                # convert() tạo ảnh độc lập trước khi page/bitmap bị giải phóng.
+                images.append(bitmap.to_pil().convert("RGB"))
+            finally:
+                if bitmap is not None:
+                    bitmap.close()
+                page.close()
+        return images
+    finally:
+        pdf.close()

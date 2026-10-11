@@ -76,7 +76,9 @@ def process_single_image(
 def run_pipeline(
     source: Union[bytes, str, Image.Image, List[Any]],
     cfg: Optional[OCRModuleConfig] = None,
-    manual_rotation_deg: int = 0
+    manual_rotation_deg: int = 0,
+    pdf_start_page: int = 0,
+    pdf_max_pages: Optional[int] = None,
 ) -> OCRResult:
     """
     Hàm entry point chính của module:
@@ -100,8 +102,11 @@ def run_pipeline(
                     reason="Tập tin tải lên là PDF nhưng hệ thống chưa có pypdfium2.", 
                     warnings=[]
                 )
-            images_to_process = load_images_from_pdf(source)
-            initial_warnings.append(f"Tài liệu PDF gồm {len(images_to_process)} trang.")
+            try:
+                images_to_process = load_images_from_pdf(source, start_page=pdf_start_page, max_pages=pdf_max_pages)
+            except (ValueError, RuntimeError) as exc:
+                return OCRResult(text="", ok=False, reason=f"Không thể đọc PDF: {exc}", warnings=initial_warnings)
+            initial_warnings.append(f"Đang xử lý {len(images_to_process)} trang PDF, từ trang {pdf_start_page + 1}.")
         else:
             img_pil, w = load_image_from_bytes(source, apply_exif=cfg.preprocess.enable_exif)
             initial_warnings.extend(w)
@@ -109,8 +114,11 @@ def run_pipeline(
 
     elif isinstance(source, str):
         if source.lower().endswith(".pdf"):
-            images_to_process = load_images_from_pdf(source)
-            initial_warnings.append(f"Tài liệu PDF gồm {len(images_to_process)} trang.")
+            try:
+                images_to_process = load_images_from_pdf(source, start_page=pdf_start_page, max_pages=pdf_max_pages)
+            except (ValueError, RuntimeError) as exc:
+                return OCRResult(text="", ok=False, reason=f"Không thể đọc PDF: {exc}", warnings=initial_warnings)
+            initial_warnings.append(f"Đang xử lý {len(images_to_process)} trang PDF, từ trang {pdf_start_page + 1}.")
         else:
             with open(source, "rb") as f:
                 img_pil, w = load_image_from_bytes(f.read(), apply_exif=cfg.preprocess.enable_exif)

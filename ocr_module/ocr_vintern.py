@@ -104,6 +104,7 @@ def load_image_tensor(image: Image.Image, input_size: int = 448, max_num: int = 
 
 _GLOBAL_MODEL = None
 _GLOBAL_TOKENIZER = None
+_GLOBAL_MODEL_KEY = None
 
 
 def get_vintern_model(cfg: ModelConfig):
@@ -111,8 +112,13 @@ def get_vintern_model(cfg: ModelConfig):
     Nạp model và tokenizer một lần duy nhất vào bộ nhớ.
     Hỗ trợ cả GPU (CUDA) và fallback CPU.
     """
-    global _GLOBAL_MODEL, _GLOBAL_TOKENIZER
-    if _GLOBAL_MODEL is not None and _GLOBAL_TOKENIZER is not None:
+    global _GLOBAL_MODEL, _GLOBAL_TOKENIZER, _GLOBAL_MODEL_KEY
+    model_key = (cfg.model_name_or_path, cfg.revision, cfg.device, str(cfg.torch_dtype))
+    if (
+        _GLOBAL_MODEL is not None
+        and _GLOBAL_TOKENIZER is not None
+        and _GLOBAL_MODEL_KEY == model_key
+    ):
         return _GLOBAL_MODEL, _GLOBAL_TOKENIZER
 
     from transformers import AutoModel, AutoTokenizer
@@ -122,32 +128,33 @@ def get_vintern_model(cfg: ModelConfig):
     if not hasattr(PreTrainedModel, 'all_tied_weights_keys'):
         PreTrainedModel.all_tied_weights_keys = {}
 
-    device = cfg.device
+    use_cuda = cfg.device == "cuda" and torch.cuda.is_available()
+    device = "cuda" if use_cuda else "cpu"
     dtype = cfg.torch_dtype
 
     print(f"[Vintern] Dang tai mo hinh {cfg.model_name_or_path} tren thiet bi {device} ({dtype})...")
     
-    tokenizer = AutoTokenizer.from_pretrained(
-        cfg.model_name_or_path, 
-        trust_remote_code=True, 
-        use_fast=False
-    )
+    load_kwargs = {"trust_remote_code": True}
+    if cfg.revision is not None:
+        load_kwargs["revision"] = cfg.revision
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model_name_or_path, use_fast=False, **load_kwargs)
     
     model = AutoModel.from_pretrained(
         cfg.model_name_or_path,
         torch_dtype=dtype,
         low_cpu_mem_usage=True,
-        trust_remote_code=True,
-        use_flash_attn=False
+        use_flash_attn=False,
+        **load_kwargs,
     ).eval()
     
-    if device == "cuda" and torch.cuda.is_available():
+    if use_cuda:
         model = model.cuda()
     else:
         model = model.to("cpu")
 
     _GLOBAL_MODEL = model
     _GLOBAL_TOKENIZER = tokenizer
+    _GLOBAL_MODEL_KEY = model_key
     print("[Vintern] Tai mo hinh thanh cong.")
     return _GLOBAL_MODEL, _GLOBAL_TOKENIZER
 
@@ -258,7 +265,7 @@ def ocr_image_vintern(
     Tự động chia dải nếu trang dài, và có cơ chế xử lý chống tràn VRAM (OOM fallback).
     """
     model, tokenizer = get_vintern_model(cfg)
-    device = cfg.device
+    use_cuda = cfg.device == "cuda" and torch.cuda.is_available()
     dtype = cfg.torch_dtype
 
     strips = split_image_into_strips(img_pil, strip_cfg)
@@ -275,7 +282,7 @@ def ocr_image_vintern(
         current_max_num = cfg.max_num
         try:
             pixel_values = load_image_tensor(strip, input_size=cfg.input_size, max_num=current_max_num).to(dtype)
-            if device == "cuda":
+            if use_cuda:
                 pixel_values = pixel_values.cuda()
 
             with torch.inference_mode():
@@ -297,7 +304,7 @@ def ocr_image_vintern(
             
             fallback_max_num = max(1, current_max_num // 2)
             pixel_values = load_image_tensor(strip, input_size=cfg.input_size, max_num=fallback_max_num).to(dtype)
-            if device == "cuda":
+            if use_cuda:
                 pixel_values = pixel_values.cuda()
 
             with torch.inference_mode():
