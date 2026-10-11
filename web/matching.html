@@ -118,8 +118,18 @@ function showResult(res) {
     return d;
   });
   const again = el('button','btn alt','🔄 Chơi lại'); again.onclick = () => start();
-  const actions = el('div','actions'); actions.append(again);
+  const actions = el('div','actions');
+  actions.append(again);
   if (res.wrong.length) { const r = el('button','btn','📝 Ôn lại câu sai'); r.onclick = () => start(res.wrong); actions.append(r); }
+  const continueButton = el('button','btn','Tiếp tục');
+  const completionMessage = el('p','muted');
+  completionMessage.setAttribute('role', 'status');
+  completionMessage.setAttribute('aria-live', 'polite');
+  continueButton.onclick = () => {
+    completionMessage.textContent = 'Bạn đã hoàn thành các game hiện có. Game trắc nghiệm chưa được triển khai.';
+    continueButton.disabled = true;
+  };
+  actions.append(continueButton, completionMessage);
   app.replaceChildren(head, ...rows, actions);
 }
 
@@ -132,7 +142,17 @@ $('#upload').onchange = async e => {
   try {
     const { files } = await api('/api/matching/files');
     $('#files').replaceChildren(...files.map(f => { const o = el('option','',f); o.value = f; return o; }));
-    if (files.length) { source = { file: files[0] }; start(); }
+    const subject = new URLSearchParams(window.location.search).get('subject');
+    if (subject) {
+      const file = files.find(f => f.includes(subject));
+      if (!file) throw new Error(`Không tìm thấy file nối từ cho môn "${subject}".`);
+      source = { file };
+      $('#files').value = file;
+      start();
+    } else if (files.length) {
+      source = { file: files[0] };
+      start();
+    }
   } catch (e) { showError(e); }
 })();
 </script>

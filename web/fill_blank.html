@@ -39,7 +39,7 @@ select{font:inherit;padding:6px;margin-top:10px;max-width:100%}
 <script>
 const $ = s => document.querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let game = null, title = "", i = 0, sel = null, last = null, res = null;
+let game = null, title = "", i = 0, sel = null, last = null, res = null, reviewOnly = false;
 
 async function api(path, body) {
   const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
@@ -53,7 +53,8 @@ async function guard(fn) { try { $("#err").textContent = ""; await fn(); } catch
 async function start(onlyIds) {
   await guard(async () => {
     const g = await api("/api/fill_blank/new", {file: $("#file").value, only_ids: onlyIds});
-    game = g; title = g.title; i = 0; sel = null; last = null; res = null; draw();
+    game = g; title = g.title; i = 0; sel = null; last = null; res = null;
+    reviewOnly = Boolean(onlyIds && onlyIds.length); draw();
   });
 }
 function draw() {
@@ -93,9 +94,13 @@ async function finish() {
       h += `<div class="rev">[${esc(r.id)}] ${esc(r.sentence)}<br>Bạn chọn: ${esc(r.chosen)} · Đúng: <b>${esc(r.correct)}</b></div>`;
     h += `<div class="row"><button class="act" id="again">Chơi lại</button>`;
     if (res.wrong.length) h += `<button class="act bad" id="redo">Ôn câu sai</button>`;
+    if (!reviewOnly) h += `<button class="act" id="continue">Tiếp tục</button>`;
     $("#main").innerHTML = h + "</div>";
     $("#again").onclick = () => start();
     if (res.wrong.length) $("#redo").onclick = () => start(res.wrong);
+    if (!reviewOnly) $("#continue").onclick = () => {
+      window.location.href = `/matching.html?subject=${encodeURIComponent(game.subject)}`;
+    };
   });
 }
 $("#quit").onclick = () => start();

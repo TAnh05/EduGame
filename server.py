@@ -7,6 +7,7 @@ Chạy:  python server.py
 - Fill Blank:   http://localhost:8000/fill_blank.html
 """
 import json
+import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,6 +22,10 @@ WEB_DIR = ROOT / "web"
 # game_id -> instance (lưu trong RAM)
 MATCHING_GAMES: dict[str, matching.MatchingGame] = {}
 FILL_GAMES: dict[str, fill_blank.FillBlankGame] = {}
+FLOW_LOCK = threading.Lock()
+FLOW_STATE = {"fill_blank_done": False}
+ACTIVE_FILL_GAME_ID: str | None = None
+ACTIVE_MATCHING_GAME_ID: str | None = None
 
 
 # ---------- Matching ----------
@@ -28,8 +33,16 @@ def matching_sample_files() -> list[str]:
     return sorted(p.name for p in DATA_DIR.glob("*matching*.json"))
 
 
+def _require_matching_unlocked() -> None:
+    with FLOW_LOCK:
+        if not FLOW_STATE["fill_blank_done"]:
+            raise ValueError("Bạn cần hoàn thành game điền chỗ trống trước.")
+
+
 def matching_api_new(body: dict) -> dict:
     """Tạo ván mới từ file mẫu {file} hoặc JSON tải lên {data}; only_ids = ôn lại câu sai."""
+    global ACTIVE_MATCHING_GAME_ID
+    _require_matching_unlocked()
     if "data" in body:
         data = body["data"]
     else:
@@ -44,13 +57,19 @@ def matching_api_new(body: dict) -> dict:
     if len(MATCHING_GAMES) > 200:
         MATCHING_GAMES.pop(next(iter(MATCHING_GAMES)))
     MATCHING_GAMES[game.id] = game
+    with FLOW_LOCK:
+        ACTIVE_MATCHING_GAME_ID = game.id
     return {**game.public_view(), "title": data.get("chapter_title", "")}
 
 
 def matching_api_check(body: dict) -> dict:
+    _require_matching_unlocked()
     game = MATCHING_GAMES.get(body.get("game_id"))
     if game is None:
         raise ValueError("Ván chơi không còn tồn tại, hãy tải lại trang.")
+    with FLOW_LOCK:
+        if game.id != ACTIVE_MATCHING_GAME_ID:
+            raise ValueError("Ván nối từ đã hết hiệu lực, hãy tải lại trang.")
     return game.check(body.get("pairs"))
 
 
@@ -65,6 +84,7 @@ def fill_sample_files() -> list[str]:
 
 def fill_api_new(body: dict) -> dict:
     """Tạo ván mới từ file mẫu {file} hoặc JSON tải lên {data}; only_ids = ôn lại câu sai."""
+    global ACTIVE_FILL_GAME_ID
     if "data" in body:
         data = body["data"]
     else:
@@ -79,7 +99,15 @@ def fill_api_new(body: dict) -> dict:
     if len(FILL_GAMES) > 200:
         FILL_GAMES.pop(next(iter(FILL_GAMES)))
     FILL_GAMES[game.id] = game
-    return {**game.public_view(), "title": data.get("chapter_title", "")}
+    with FLOW_LOCK:
+        if not body.get("only_ids"):
+            FLOW_STATE["fill_blank_done"] = False
+            ACTIVE_FILL_GAME_ID = game.id
+    return {
+        **game.public_view(),
+        "title": data.get("chapter_title", ""),
+        "subject": data.get("subject", ""),
+    }
 
 
 def _fill_game(body: dict) -> fill_blank.FillBlankGame:
@@ -94,7 +122,12 @@ def fill_api_check(body: dict) -> dict:
 
 
 def fill_api_result(body: dict) -> dict:
-    return _fill_game(body).result()
+    game = _fill_game(body)
+    result = game.result()
+    with FLOW_LOCK:
+        if game.id == ACTIVE_FILL_GAME_ID:
+            FLOW_STATE["fill_blank_done"] = True
+    return result
 
 
 # ---------- HTTP Handler ----------
@@ -115,13 +148,25 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, {"error": "Not found"})
         self._send(200, path.read_bytes(), ctype)
 
+    def _redirect(self, location: str):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_GET(self):
         path = urlparse(self.path).path
 
         if path in ("/", "/index.html"):
-            return self._send_file(WEB_DIR / "index.html", "text/html; charset=utf-8")
+            with FLOW_LOCK:
+                next_game = "matching" if FLOW_STATE["fill_blank_done"] else "fill_blank"
+            return self._redirect(f"/{next_game}.html")
 
         if path == "/matching.html":
+            try:
+                _require_matching_unlocked()
+            except ValueError:
+                return self._redirect("/")
             return self._send_file(WEB_DIR / "matching.html", "text/html; charset=utf-8")
         if path in ("/fill_blank.html", "/fill_blank"):
             return self._send_file(WEB_DIR / "fill_blank.html", "text/html; charset=utf-8")
