@@ -44,7 +44,7 @@
 <script>
 const COLORS = ['#3b82f6','#f97316','#22c55e','#a855f7','#eab308','#ef4444','#92400e','#64748b','#0ea5e9','#ec4899'];
 const $ = s => document.querySelector(s);
-let source = {}, game = null, pairs = {}, sel = null;   // pairs: {term_id: definition_idx}
+let source = {}, game = null, pairs = {}, sel = null, reviewOnly = false;   // pairs: {term_id: definition_idx}
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -65,7 +65,7 @@ async function start(onlyIds) {
     const body = source.data ? { data: source.data } : { file: source.file };
     if (onlyIds) body.only_ids = onlyIds;
     game = await api('/api/matching/new', body);
-    pairs = {}; sel = null; render();
+    pairs = {}; sel = null; reviewOnly = Boolean(onlyIds && onlyIds.length); render();
   } catch (e) { showError(e); }
 }
 
@@ -121,15 +121,13 @@ function showResult(res) {
   const actions = el('div','actions');
   actions.append(again);
   if (res.wrong.length) { const r = el('button','btn','📝 Ôn lại câu sai'); r.onclick = () => start(res.wrong); actions.append(r); }
-  const continueButton = el('button','btn','Tiếp tục');
-  const completionMessage = el('p','muted');
-  completionMessage.setAttribute('role', 'status');
-  completionMessage.setAttribute('aria-live', 'polite');
-  continueButton.onclick = () => {
-    completionMessage.textContent = 'Bạn đã hoàn thành các game hiện có. Game trắc nghiệm chưa được triển khai.';
-    continueButton.disabled = true;
-  };
-  actions.append(continueButton, completionMessage);
+  if (!reviewOnly) {
+    const continueButton = el('button','btn','Tiếp tục');
+    continueButton.onclick = () => {
+      window.location.href = `/quiz.html?subject=${encodeURIComponent(game.subject || '')}`;
+    };
+    actions.append(continueButton);
+  }
   app.replaceChildren(head, ...rows, actions);
 }
 

@@ -103,14 +103,15 @@ stateDiagram-v2
 ```
 Edu_game/
 ├── CLAUDE.md             Luật làm việc với Agent: phạm vi, quy ước, điều cấm
-├── server.py             Server http.server: dẫn thứ tự game, mở khóa, nhận API   (em)
+├── server.py             Server http.server: dẫn thứ tự 3 game, mở khóa, nhận API (em)
 ├── web/
 │   ├── fill_blank.html   Giao diện game 1                                          (em)
-│   └── matching.html     Giao diện game 2 + nút "Tiếp tục"                         (em)
+│   ├── matching.html     Giao diện game 2 + nút "Tiếp tục"                         (em)
+│   └── quiz.html         Giao diện game 3                                          (em)
 ├── games/                LOGIC game, Python thuần, không phụ thuộc giao diện
 │   ├── fill_blank.py     Game 1: điền chỗ trống                                    (em)
 │   ├── matching.py       Game 2: nối từ                                            (em)
-│   ├── quiz.py           Game 3: trắc nghiệm — mới là khung Streamlit, chưa viết lại
+│   ├── quiz.py           Game 3: trắc nghiệm
 │   └── final_test.py     Bài kiểm tra cuối — khung, chưa làm (Sơn Nguyễn)
 ├── data/                 6 file JSON mẫu = 2 môn (english, philosophy) × 3 game
 ├── tests/                test_game_flow.py: test luồng mở khóa game
@@ -156,11 +157,13 @@ Ràng buộc: đúng 3 phần theo thứ tự 1, 2, 3; `fill_blank` có đúng *
 
 | Route | Việc |
 |---|---|
-| `GET /` | Chuyển (303) tới game đang được mở: `fill_blank.html`, hoặc `matching.html` khi game 1 đã xong |
+| `GET /` | Chuyển (303) tới game đang mở theo thứ tự Fill Blank → Matching → Quiz; hiện trạng thái hoàn thành sau game 3 |
 | `GET /matching.html` | Bị chuyển về `/` nếu game 1 chưa xong |
-| `POST /api/fill_blank/new` · `/check` · `/result` | Tạo ván, chấm từng câu, lấy kết quả (xong mới mở khóa game 2) |
-| `POST /api/matching/new` · `/check` | Tạo ván (bị chặn nếu chưa mở khóa), chấm cả ván |
-| *(chưa có)* `/api/quiz/*` | Cần thêm khi viết `quiz.py` |
+| `GET /quiz.html` | Bị chuyển về `/` nếu game 2 chưa xong |
+| `GET /api/fill_blank/files`, `/api/matching/files`, `/api/quiz/files` | Liệt kê file mẫu theo game |
+| `POST /api/fill_blank/new` · `/check` · `/result` | Tạo ván, chấm từng câu, lấy kết quả; hoàn thành mới mở khóa game 2 |
+| `POST /api/matching/new` · `/check` | Tạo ván, chấm cả ván; hoàn thành mới mở khóa game 3 |
+| `POST /api/quiz/new` · `/check` · `/result` | Tạo ván, chấm từng câu, lấy kết quả; chỉ mở sau game 2 |
 
 ---
 
@@ -219,12 +222,12 @@ Mỗi lần chỉ một việc, kèm điều kiện hoàn thành ("không vào �
 Mỗi game có `validate_items` trả về danh sách lỗi tiếng Việt; constructor `raise ValueError` nếu dữ liệu sai. `check_one` / `check` từ chối chỉ số không hợp lệ (kể cả `bool`), từ chối chấm khi chưa ghép đủ cặp. `result()` từ chối khi chưa trả lời hết, và đó chính là điều kiện mở khóa game 2.
 
 **d) Test**
-`tests/test_game_flow.py` có 5 test, em chạy lại trên bản em gửi và **cả 5 đều pass**:
+`tests/test_game_flow.py` kiểm tra luồng ba game và hiện có 9 test:
 - Matching bị khóa cho đến khi fill_blank có kết quả đầy đủ.
 - Fill_blank chưa trả lời hết thì không mở khóa matching.
-- Phản hồi của fill_blank có `subject` để chuyển sang game kế tiếp.
-- Luồng HTTP thật: `/` → 303 `/fill_blank.html`; `/matching.html` → 303 `/` khi chưa mở; sau khi xong thì 200.
-- Trang kết quả có nút "Tiếp tục".
+- Quiz bị khóa cho đến khi Matching hoàn thành; Quiz hoàn thành đưa luồng tới trạng thái kết thúc.
+- Luồng HTTP thật: trang game bị khóa điều hướng về `/`; sau khi mở khóa thì trang được phục vụ.
+- Danh sách file Quiz, cấu trúc dữ liệu, subject và nút chuyển tiếp giữa các game được kiểm tra.
 
 **e) Git**
 Commit nhỏ, mỗi việc một commit, message nói rõ việc; làm trên branch riêng (`theanh-branch`) rồi gộp qua pull request; luôn đọc `git diff` trước khi commit. Commit `d4d41c5` còn cho thấy em dọn repo (bỏ `web/index.html`, dùng redirect từ server).
@@ -265,5 +268,3 @@ Commit nhỏ, mỗi việc một commit, message nói rõ việc; làm trên bra
 - AI hay "đoán" chỗ nhóm chưa chốt, nên ghi **[Cần chốt]** và cấm tự suy diễn.
 - Code AI viết ra vẫn phải **đọc diff, chạy test, chạy thử bằng tay**; test là bằng chứng, không phải lời hứa.
 - Tách logic khỏi giao diện giúp test được logic mà không cần mở trình duyệt, và giúp đổi giao diện (Streamlit ↔ HTML) mà không viết lại game.
-
-
