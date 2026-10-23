@@ -1,4 +1,5 @@
 import http.client
+import json
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
@@ -12,14 +13,20 @@ class GameFlowTests(unittest.TestCase):
         server.MATCHING_GAMES.clear()
         server.FILL_GAMES.clear()
         server.QUIZ_GAMES.clear()
+        server.FINAL_TEST_GAMES.clear()
         server.FLOW_STATE.update({
             "fill_blank_done": False,
             "matching_done": False,
             "quiz_done": False,
+            "final_test_done": False,
         })
+        server.FLOW_CHAPTER = None
+        server.FLOW_RESULTS.clear()
         server.ACTIVE_FILL_GAME_ID = None
         server.ACTIVE_MATCHING_GAME_ID = None
         server.ACTIVE_QUIZ_GAME_ID = None
+        server.ACTIVE_FINAL_TEST_GAME_ID = None
+        server.ACTIVE_FINAL_TEST_ITEMS = {}
         server.ACTIVE_MATCHING_REVIEW_ONLY = False
         server.ACTIVE_QUIZ_REVIEW_ONLY = False
 
@@ -59,6 +66,17 @@ class GameFlowTests(unittest.TestCase):
                 "idx": question["correct"],
             })
         return server.quiz_api_result({"game_id": game_view["game_id"]})
+
+    def complete_final_test(self):
+        game_view = server.final_test_api_new()
+        game = server.FINAL_TEST_GAMES[game_view["game_id"]]
+        for question in game.questions:
+            server.final_test_api_check({
+                "game_id": game_view["game_id"],
+                "qid": question["id"],
+                "idx": question["correct"],
+            })
+        return server.final_test_api_result({"game_id": game_view["game_id"]})
 
     def test_matching_is_locked_until_full_fill_blank_result(self):
         with self.assertRaisesRegex(ValueError, "hoàn thành game điền chỗ trống"):
@@ -104,6 +122,50 @@ class GameFlowTests(unittest.TestCase):
         self.assertEqual(result["score"], result["total"])
         self.assertTrue(server.FLOW_STATE["quiz_done"])
 
+    def test_final_test_is_locked_until_quiz_is_completed(self):
+        with self.assertRaisesRegex(ValueError, "hoàn thành cả ba game"):
+            server.final_test_api_new()
+        self.complete_fill_blank()
+        self.complete_matching()
+        with self.assertRaisesRegex(ValueError, "hoàn thành cả ba game"):
+            server.final_test_api_new()
+        self.complete_quiz()
+        final_view = server.final_test_api_new()
+        self.assertEqual(final_view["subject"], "philosophy")
+        self.assertEqual(len(final_view["questions"]), 16)
+        self.assertTrue(all("options" in question for question in final_view["questions"]))
+        self.assertTrue(all(
+            "correct" not in question and "correct_idx" not in question
+            for question in final_view["questions"]
+        ))
+
+    def test_final_test_requires_all_games_to_use_same_chapter(self):
+        self.complete_fill_blank()
+        different_chapter = {
+            "subject": "english",
+            "chapter_title": "Different chapter",
+            "parts": [{"game": "matching", "items": [
+                {"id": "m1", "term": "term", "definition": "definition"},
+                {"id": "m2", "term": "term 2", "definition": "definition 2"},
+            ]}],
+        }
+        with self.assertRaisesRegex(ValueError, "cùng môn học và chương"):
+            server.matching_api_new({"data": different_chapter})
+
+    def test_final_test_result_has_grade_and_source_traceability(self):
+        self.complete_fill_blank()
+        self.complete_matching()
+        self.complete_quiz()
+        result = self.complete_final_test()
+        self.assertEqual(result["score"], result["total"])
+        self.assertEqual(result["grade_10"], 10)
+        self.assertTrue(server.FLOW_STATE["final_test_done"])
+        self.assertTrue(all(
+            review["source_game"] in ("fill_blank", "matching", "quiz")
+            and review["source_id"]
+            for review in result["review"]
+        ))
+
     def test_quiz_api_only_lists_quiz_sample_files(self):
         self.assertEqual(
             server.quiz_sample_files(),
@@ -116,6 +178,19 @@ class GameFlowTests(unittest.TestCase):
         thread.start()
         connection = http.client.HTTPConnection("127.0.0.1", httpd.server_port)
         try:
+            connection.request(
+                "POST", "/api/final_test/new", body="{}", headers={"Content-Type": "application/json"}
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 400)
+            response.read()
+
+            connection.request("GET", "/final_test.html")
+            response = connection.getresponse()
+            self.assertEqual(response.status, 303)
+            self.assertEqual(response.getheader("Location"), "/")
+            response.read()
+
             connection.request("GET", "/")
             response = connection.getresponse()
             self.assertEqual(response.status, 303)
@@ -155,8 +230,57 @@ class GameFlowTests(unittest.TestCase):
             self.complete_quiz()
             connection.request("GET", "/")
             response = connection.getresponse()
+            self.assertEqual(response.status, 303)
+            self.assertEqual(response.getheader("Location"), "/final_test.html")
+            response.read()
+
+            connection.request("GET", "/final_test.html")
+            response = connection.getresponse()
             self.assertEqual(response.status, 200)
-            self.assertIn("Đã hoàn thành 3 game", response.read().decode("utf-8"))
+            response.read()
+
+            connection.request(
+                "POST", "/api/final_test/new", body="{}", headers={"Content-Type": "application/json"}
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            final_view = json.loads(response.read())
+            final_game = server.FINAL_TEST_GAMES[final_view["game_id"]]
+            connection.request(
+                "POST", "/api/final_test/result",
+                body=json.dumps({"game_id": final_view["game_id"]}),
+                headers={"Content-Type": "application/json"},
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 400)
+            response.read()
+            for question in final_game.questions:
+                payload = json.dumps({
+                    "game_id": final_view["game_id"],
+                    "qid": question["id"],
+                    "idx": question["correct"],
+                })
+                connection.request(
+                    "POST", "/api/final_test/check", body=payload,
+                    headers={"Content-Type": "application/json"},
+                )
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                response.read()
+            connection.request(
+                "POST", "/api/final_test/result",
+                body=json.dumps({"game_id": final_view["game_id"]}),
+                headers={"Content-Type": "application/json"},
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            final_result = json.loads(response.read())
+            self.assertEqual(final_result["grade_10"], 10)
+
+            connection.request("GET", "/")
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertIn("Hoàn thành lượt ôn tập", response.read().decode("utf-8"))
         finally:
             connection.close()
             httpd.shutdown()

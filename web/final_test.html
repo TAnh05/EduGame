@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài kiểm tra cuối</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f7f7f7;color:#3c3c3c;font-family:"Segoe UI",Arial,sans-serif}
+.app{max-width:680px;margin:0 auto;padding:18px 16px 28px}
+.top{display:flex;align-items:center;gap:14px}
+.bar{flex:1;height:14px;background:#e5e5e5;border-radius:99px;overflow:hidden}
+.bar div{height:100%;width:0;background:#58cc02;border-radius:99px;transition:width .3s}
+.sub{text-align:center;color:#777;font-size:.9rem;margin-top:18px}
+.q{text-align:center;font-size:1.45rem;font-weight:800;line-height:1.6;margin:1rem 0 1.4rem}
+.blank{display:inline-block;min-width:100px;border-bottom:3px solid #afafaf;padding:0 .3rem}
+.opt,.act{display:block;width:100%;text-align:left;font:inherit;font-weight:700;padding:.85rem 1rem;margin-bottom:11px;
+ background:#fff;border:2px solid #e5e5e5;border-bottom-width:4px;border-radius:14px;color:#3c3c3c;cursor:pointer}
+.opt.sel{background:#f1ffe3;border-color:#89e219}.opt.ok{background:#d7ffb8;border-color:#89e219;color:#58a700}
+.opt.bad{background:#ffdfe0;border-color:#ff9b9b;color:#ea2b2b}.opt:disabled{cursor:default}
+.act{text-align:center;background:#58cc02;border-color:#46a302;color:white;text-transform:uppercase}
+.act:disabled{background:#e5e5e5;border-color:#cfcfcf;color:#afafaf;cursor:default}
+.fb{border-radius:14px;padding:12px 16px;font-weight:700;margin:6px 0 12px}
+.fb.ok{background:#d7ffb8;color:#58a700}.fb.bad{background:#ffdfe0;color:#ea2b2b}
+.cnt{text-align:center;color:#999;font-size:.85rem;margin-top:10px}
+.rev{background:#ffdfe0;color:#8b1d1d;border-radius:12px;padding:10px 14px;margin:10px 0;font-weight:600}
+.err{color:#ea2b2b;text-align:center;font-weight:700;margin-top:12px}
+</style>
+</head>
+<body><main class="app">
+<div class="top"><div class="bar"><div id="progress"></div></div></div>
+<div id="main"></div><div class="err" id="error"></div>
+</main>
+<script>
+const $ = selector => document.querySelector(selector);
+const esc = text => String(text).replace(/[&<>"']/g, char =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+let game, index = 0, selected = null, checked = null;
+
+async function api(path, body) {
+  const response = await fetch(path, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Không thể kết nối máy chủ.");
+  return result;
+}
+
+function render() {
+  const count = game.questions.length;
+  $("#progress").style.width = `${100 * (index + (checked ? 1 : 0)) / count}%`;
+  if (index >= count) return finish();
+  const question = game.questions[index];
+  const answer = selected === null ? "" : esc(question.options[selected].text);
+  const questionText = question.is_blank
+    ? `${esc(question.before)}<span class="blank">${answer}</span>${esc(question.after)}`
+    : esc(question.before);
+  let markup = `<div class="sub">${esc(game.title)} · Bài kiểm tra cuối</div>
+    <div class="q">${questionText}</div>`;
+  for (const option of question.options) {
+    let cls = "opt";
+    if (checked && option.idx === checked.correct_idx) cls += " ok";
+    else if (checked && option.idx === selected) cls += " bad";
+    else if (option.idx === selected) cls += " sel";
+    markup += `<button class="${cls}" data-index="${option.idx}" ${checked ? "disabled" : ""}>${esc(option.text)}</button>`;
+  }
+  if (checked) {
+    markup += `<div class="fb ${checked.ok ? "ok" : "bad"}">${
+      checked.ok ? "Chính xác!" : "Đáp án đúng: " + esc(checked.correct_text)
+    }</div>`;
+  }
+  markup += `<button class="act" id="action" ${selected === null ? "disabled" : ""}>${
+    checked ? "Câu tiếp theo" : "Trả lời"
+  }</button><div class="cnt">Câu ${index + 1} / ${count}</div>`;
+  $("#main").innerHTML = markup;
+  document.querySelectorAll(".opt").forEach(button => {
+    button.onclick = () => { if (!checked) { selected = Number(button.dataset.index); render(); } };
+  });
+  $("#action").onclick = advance;
+}
+
+async function advance() {
+  try {
+    $("#error").textContent = "";
+    if (!checked) {
+      checked = await api("/api/final_test/check", {
+        game_id: game.game_id, qid: game.questions[index].id, idx: selected
+      });
+    } else {
+      index++;
+      selected = null;
+      checked = null;
+    }
+    render();
+  } catch (error) { $("#error").textContent = error.message; }
+}
+
+async function finish() {
+  try {
+    const result = await api("/api/final_test/result", {game_id: game.game_id});
+    let markup = `<div class="sub">${esc(game.title)}</div>
+      <div class="q">Hoàn thành bài kiểm tra!<br>${result.score}/${result.total} câu đúng
+      <br>Điểm: ${Number(result.grade_10).toFixed(2)}/10</div>`;
+    for (const review of result.review.filter(item => !item.ok)) {
+      markup += `<div class="rev">Nguồn: ${esc(review.source_game)} / ${esc(review.source_id)}
+        <br>${esc(review.sentence)}<br>Bạn chọn: ${esc(review.chosen)}
+        · Đáp án đúng: ${esc(review.correct)}</div>`;
+    }
+    markup += `<button class="act" id="summary">Xem tổng kết</button>`;
+    $("#main").innerHTML = markup;
+    $("#summary").onclick = () => { window.location.href = "/"; };
+  } catch (error) { $("#error").textContent = error.message; }
+}
+
+(async () => {
+  try {
+    game = await api("/api/final_test/new", {});
+    render();
+  } catch (error) { $("#error").textContent = error.message; }
+})();
+</script>
+</body>
+</html>

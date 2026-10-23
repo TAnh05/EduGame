@@ -1,39 +1,10 @@
- 
- +) Planning
-Tên mục	Trả lời	
-Tên dự án	Web ôn bài bằng các trò chơi	
-Đối tượng sử dụng	người muốn ôn bài	
-Mục Tiêu	Giúp người học có thể ôn bài bằng cách tải file lên, biến thành các trò chơi ôn tập để việc ôn bài bớt khô khan.	
-Tính năng	- Tải file Word. PDF chứa nội dung muốn ôn
-- Chơi các trò chơi để ôn tập
-- Làm bài kiểm tra cuối
-- Sem điểm
-- Ôn lại các câu sai	
-Mối quan hệ	- Một Chương gồm nhiều Phần. Mỗi Phần ứng với một Game. Mỗi Game chứa nhiều Câu hỏi. Bài kiểm tra cuối lấy câu hỏi từ các Game. File .json là dữ liệu vào của Game.	
-Luồng xử lý	-Tải các file Word, PDF ví dụ:
-Chương 1-Triết học đại cương. 
-- Mỗi chương sẽ có các phần khác nhau sẽ được tiền xử lý thành các file .json có cấu trúc Câu hỏi và Đáp Án.
-- Hệ thống lấy dữ liệu JSON của các file .json và chuẩn bị 3 game.
-- GameFlow xác định thứ tự 3 game
-- Giao diện hiện game đầu tiên. Người học trả lời từng câu.
-- Khi xong cả 3 game, giao diện mở bài kiểm tra cuối.
-- Hệ thống chấm điểm và hiện kết quả cùng danh sách câu sai.
-	
-API với app	Giao diện ↔ Game (public_view, check, result); AI → Game (chapter.json)	
-Dữ liệu và quy tắc	- Dữ liệu vào: file .json có quy tắc ( câu hỏi và đáp án )
-- Mỗi game là một module có phần hiển thị dữ liệu, phần chấm, phần trả kết quả
-- Quy tắc chấm: mỗi câu đúng được 5 điểm, sai sẽ không trừ để tính tổng, Tổng sẽ là 100 điểm mỗi trò chơi.
-- Bài kiểm tra cuối: 50 câu, lấy từ các câu hỏi đã ôn	
-Giai đoạn và phạm vi	- Giai đoạn 1: thứ tự cố đảm bảo game chạy.
-- Giai đoạn 2: random thứ tự.	
-- Một số chỗ cần sửa:
-STT	Việc	Xong khi	Test cần có
-1	Sửa server.py cho chơi theo thứ tự	Không vào được game 2 khi chưa xong game 1; xong game 3 có kết quả	bỏ màn hình chọn game
-
-
 # Edu_game: Web ôn bài bằng các trò chơi
 
-Người học tải tài liệu một chương → hệ thống trích văn bản → AI sinh câu hỏi (`chapter.json`) → chơi 3 game theo thứ tự cố định (điền chỗ trống → nối từ → trắc nghiệm) → bài kiểm tra cuối → tổng kết và ôn lại câu sai.
+**Mục tiêu hoàn chỉnh (thiết kế):** người học tải Word/PDF → trích văn bản → AI sinh câu hỏi (`chapter.json`) → ba game theo thứ tự cố định → bài kiểm tra cuối → tổng kết và ôn câu sai.
+
+**Bản demo Final Test:** Quiz lấy câu từ cả ba game trong cùng chương (tối đa 30), dùng 2–4 lựa chọn và tính điểm thang 10 theo `10 × score / total`. Logic, API, giao diện và tổng kết đã được tích hợp; đặc tả nằm ở `docs/02-kiem-thu-final-test.md`.
+
+**Phiên bản hiện có:** server HTML chạy **Fill Blank (chọn đáp án điền chỗ trống) → Matching → Quiz → Final Test → Tổng kết** với dữ liệu JSON mẫu hoặc JSON do API nhận. Phần tải file và sinh câu hỏi AI chưa tích hợp vào luồng demo.
 
 
 ---
@@ -47,14 +18,14 @@ Người học tải tài liệu một chương → hệ thống trích văn b�
 | Phần của em | Phần **game**: từ lúc có `chapter.json` đến lúc hiện kết quả (3 game, server dẫn thứ tự, giao diện HTML) |
 | Phần của bạn khác | Tiền xử lý (`preprocess.py`), AI sinh câu hỏi (`ai_generate.py`, `prompts.py`), bài kiểm tra cuối (`final_test.py`), tổng kết (`summary.py`, `app.py`) |
 
-Tính năng: F1 tải file · F2 điền chỗ trống (gõ đáp án) · F3 nối từ · F4 trắc nghiệm · F5 bài kiểm tra cuối · F6 xem điểm · F7 ôn lại câu sai.
+Tính năng: F1 tải file · F2 điền chỗ trống (chọn đáp án tự sinh từ dữ liệu) · F3 nối từ · F4 trắc nghiệm · F5 bài kiểm tra cuối · F6 xem điểm · F7 ôn lại câu sai.
 
 ## 2. Cách chạy
 
 ```bash
 pip install -r requirements.txt     # thư viện của cả nhóm (Streamlit, Pydantic, ...)
-py server.py                    # phần game chỉ cần thư viện chuẩn, mở http://127.0.0.1:8000
-py -m unittest tests.test_game_flow -v    # chạy test luồng game
+python server.py                # phần game chỉ cần thư viện chuẩn, mở http://127.0.0.1:8000
+python -m unittest discover -s tests -v  # chạy test luồng game
 ```
 
 Khóa API (cho module AI của bạn khác): copy `.env.example` thành `.env` và điền `ANTHROPIC_API_KEY`. File `.env` đã nằm trong `.gitignore`, không commit.
@@ -63,10 +34,10 @@ Khóa API (cho module AI của bạn khác): copy `.env.example` thành `.env` v
 
 ## 3. Em dùng gì để phân tích hệ thống
 
-Em không bắt tay vào code ngay mà đi qua 3 lớp tài liệu, đều nằm trong `docs/` và lưu bằng **text** để đưa vào Git:
+Trước khi viết code, em đọc 3 lớp tài liệu, đều nằm trong `docs/` và lưu bằng **text** để đưa vào Git:
 
 **a) Kịch bản và planning (`docs/01-kich-ban.md`)**
-Mô tả theo thứ tự: tổng quan → danh sách tính năng (F1–F7) → quan hệ giữa các thành phần → luồng xử lý từng bước (ghi rõ *ai làm gì*) → API giữa các phần → quy tắc dữ liệu và chấm điểm → giai đoạn → quyết định đã chốt / còn mở. Điểm em thấy hữu ích nhất là mục **"Quyết định còn mở"**: chỗ nào nhóm chưa thống nhất thì ghi **[Cần chốt]** thay vì tự đoán (ví dụ bài kiểm tra cuối 10 hay 50 câu; chấm 5 điểm cố định hay theo tỷ lệ).
+Mô tả theo thứ tự: tổng quan → danh sách tính năng (F1–F7) → quan hệ giữa các thành phần → luồng xử lý từng bước (ghi rõ *ai làm gì*) → API giữa các phần → quy tắc dữ liệu và chấm điểm → giai đoạn → quyết định đã chốt / còn mở. Điểm em thấy hữu ích nhất là mục **"Quyết định còn mở"**: chỗ nào nhóm chưa thống nhất thì ghi **[Cần chốt]** thay vì tự đoán (ví dụ điểm các game thành phần 5 điểm cố định hay theo tỷ lệ; bài kiểm tra cuối được định hướng tối đa 30 câu, thang 10).
 
 **b) UML viết bằng text (`docs/01-UML-phan-game.md`)**
 Mỗi loại sơ đồ trả lời một câu hỏi khác nhau:
@@ -84,16 +55,16 @@ Quy trình 6 bước em dùng: thu thập thông tin từ planning → chọn lo
 **c) Hợp đồng dữ liệu**
 Trước khi viết game, em chốt hai "hợp đồng" mà mọi thành viên phải theo (chi tiết ở mục 4): cấu trúc `chapter.json` và kết quả `{score, total, wrong}`. Nhờ vậy game không cần biết AI sinh câu hỏi thế nào, và module AI không cần biết game chấm thế nào.
 
-State diagram giai đoạn 1 (thứ tự cố định):
+State diagram của luồng demo hiện tại (thứ tự cố định):
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Game1
-    Game1 --> Game2 : xong game 1
-    Game2 --> Game3 : xong game 2
-    Game3 --> FinalTest : xong game 3
-    FinalTest --> Summary : nộp bài
-    Summary --> [*]
+    [*] --> FillBlank
+    FillBlank --> Matching : xong Fill Blank
+    Matching --> Quiz : xong Matching
+    Quiz --> HoanThanh3Game : xong Quiz
+    HoanThanh3Game --> FinalTest : đã tích hợp
+    FinalTest --> Summary : đã nộp bài
 ```
 
 ---
@@ -103,23 +74,26 @@ stateDiagram-v2
 ```
 Edu_game/
 ├── CLAUDE.md             Luật làm việc với Agent: phạm vi, quy ước, điều cấm
+├── .claude/skills/       3 skill: Coding, Testing, Documentation
 ├── server.py             Server http.server: dẫn thứ tự 3 game, mở khóa, nhận API (em)
 ├── web/
 │   ├── fill_blank.html   Giao diện game 1                                          (em)
 │   ├── matching.html     Giao diện game 2 + nút "Tiếp tục"                         (em)
-│   └── quiz.html         Giao diện game 3                                          (em)
+│   ├── quiz.html         Giao diện game 3                                          (em)
+│   └── final_test.html   Giao diện bài kiểm tra cuối
+│   └── final_test.html   Giao diện bài kiểm tra cuối
 ├── games/                LOGIC game, Python thuần, không phụ thuộc giao diện
 │   ├── fill_blank.py     Game 1: điền chỗ trống                                    (em)
 │   ├── matching.py       Game 2: nối từ                                            (em)
 │   ├── quiz.py           Game 3: trắc nghiệm
-│   └── final_test.py     Bài kiểm tra cuối — khung, chưa làm (Sơn Nguyễn)
+│   └── final_test.py     Dựng câu hỏi bài kiểm tra cuối
 ├── data/                 6 file JSON mẫu = 2 môn (english, philosophy) × 3 game
-├── tests/                test_game_flow.py: test luồng mở khóa game
+├── tests/                test_game_flow.py và test_final_test.py
 ├── docs/                 Kịch bản, UML, việc cần làm
 ├── preprocess.py         Đọc PDF/Word → văn bản sạch (Toàn)
 ├── ai_generate.py        Gọi AI → chapter.json, kiểm tra bằng Pydantic (Sang)
 ├── prompts.py            Prompt từng môn, từng phần (Sang)
-├── summary.py, app.py    Màn hình tổng kết, trang Streamlit (Sơn Phạm)
+├── summary.py, app.py    Màn hình Streamlit của luồng khác/chưa tích hợp
 ├── .env.example          Mẫu khóa API (không chứa khóa thật)
 └── .gitignore            Chặn .env, __pycache__, cache/, uploads/
 ```
@@ -128,9 +102,10 @@ Edu_game/
 
 1. **Tách logic và giao diện.** `games/` không import `http.server` hay Streamlit; `server.py` và `web/` chỉ gọi logic.
 2. **Game chỉ đọc dữ liệu theo hợp đồng**, không đọc văn bản thô, không gọi API AI.
-3. **Đáp án đúng ở lại phía server.** `public_view()` không chứa đáp án; giao diện chỉ nhận câu đã xáo và chỉ số lựa chọn.
+3. **Đáp án đúng ở lại phía server.** `public_view()` chỉ gửi câu và những phương án có `idx` (không đánh dấu đáp án đúng); `check_one()` mới trả `correct_idx`/`correct_text` sau khi kiểm tra. Fill Blank hiện **chọn đáp án**, không gõ văn bản.
 4. **Mọi game cùng một khuôn class:** `__init__(items)` gọi `validate_items` (lỗi thì `raise ValueError` bằng tiếng Việt) → `public_view()` → hàm chấm (`check` / `check_one`) → `result()`.
-5. **Thứ tự game là danh sách cấu hình** (`GAME_ORDER`), mở khóa theo *vị trí trong danh sách*, không theo số `part` → giai đoạn 2 (random thứ tự) chỉ cần đổi danh sách.
+5. **Thứ tự game hiện là cố định trong `server.py`**, mở khóa dựa trên các cờ `FLOW_STATE`, không có biến `GAME_ORDER`/class `GameFlow` trong code. Danh sách cấu hình và random thứ tự là **thiết kế tương lai**, chưa triển khai.
+6. **Hạn chế hiện tại:** `FLOW_STATE` chung cho mọi kết nối và chưa khóa môn/chương xuyên suốt phiên chơi; không coi demo hiện tại là hệ thống đa người dùng.
 
 ### Hợp đồng `chapter.json`
 
@@ -143,7 +118,9 @@ Edu_game/
  ]}
 ```
 
-Ràng buộc: đúng 3 phần theo thứ tự 1, 2, 3; `fill_blank` có đúng **một** `___`; `quiz` có đúng 4 options và `answer` là 0..3; `id` không rỗng và không trùng trong cùng phần.
+**Hợp đồng dự kiến cho `chapter.json` đầy đủ:** đúng 3 phần theo thứ tự 1, 2, 3; `fill_blank` có đúng **một** `___`, đáp án không rỗng và có ít nhất hai đáp án phân biệt để sinh lựa chọn; `quiz` có 4 options và `answer` là 0..3; `id` không rỗng và không trùng trong cùng phần. **File JSON mẫu hiện chỉ chứa một phần** (một game mỗi file).
+
+**Cách Fill Blank hoạt động hiện nay:** đối với mỗi chỗ trống, game lấy đáp án đúng và tối đa ba đáp án nhiễu từ câu khác trong cùng bộ, xáo trộn và hiển thị 2–4 lựa chọn. Người học nhấn chọn, trình duyệt gửi `qid` và `idx` để server chấm. Fill Blank khác Quiz ở chỗ các lựa chọn không phải nhập sẵn vào JSON từng câu.
 
 ### Hợp đồng kết quả
 
@@ -151,19 +128,21 @@ Ràng buộc: đúng 3 phần theo thứ tự 1, 2, 3; `fill_blank` có đúng *
 {"score": 7, "total": 8, "wrong": ["p1-03"], "review": [...]}
 ```
 
-`score` là **số câu đúng**, không phải điểm. Điểm hiển thị (5 điểm/câu hoặc theo tỷ lệ) do lớp hiển thị tính. `review` là phần thêm cho giao diện.
+`score` là **số câu đúng**, không phải điểm thang 100. Các game thành phần vẫn hiển thị `score/total`; điểm theo quy tắc 5 điểm/câu hay chuẩn hóa vẫn **[Cần chốt]**. Final Test tính điểm thang 10 theo `10 × score / total` (không làm tròn trong logic), và trang tổng kết hiển thị hai chữ số thập phân. `review` là phần thêm cho giao diện.
 
 ### API giữa giao diện và server
 
 | Route | Việc |
 |---|---|
-| `GET /` | Chuyển (303) tới game đang mở theo thứ tự Fill Blank → Matching → Quiz; hiện trạng thái hoàn thành sau game 3 |
+| `GET /` | Chuyển tới bước đang mở; sau Final Test hiển thị tổng kết |
 | `GET /matching.html` | Bị chuyển về `/` nếu game 1 chưa xong |
 | `GET /quiz.html` | Bị chuyển về `/` nếu game 2 chưa xong |
+| `GET /final_test.html` | Bị chuyển về `/` nếu chưa hoàn tất Quiz |
 | `GET /api/fill_blank/files`, `/api/matching/files`, `/api/quiz/files` | Liệt kê file mẫu theo game |
 | `POST /api/fill_blank/new` · `/check` · `/result` | Tạo ván, chấm từng câu, lấy kết quả; hoàn thành mới mở khóa game 2 |
 | `POST /api/matching/new` · `/check` | Tạo ván, chấm cả ván; hoàn thành mới mở khóa game 3 |
 | `POST /api/quiz/new` · `/check` · `/result` | Tạo ván, chấm từng câu, lấy kết quả; chỉ mở sau game 2 |
+| `POST /api/final_test/new` · `/check` · `/result` | Tạo bài thi từ cùng chương, chấm đáp án và trả điểm thang 10 |
 
 ---
 
@@ -222,18 +201,18 @@ Mỗi lần chỉ một việc, kèm điều kiện hoàn thành ("không vào �
 Mỗi game có `validate_items` trả về danh sách lỗi tiếng Việt; constructor `raise ValueError` nếu dữ liệu sai. `check_one` / `check` từ chối chỉ số không hợp lệ (kể cả `bool`), từ chối chấm khi chưa ghép đủ cặp. `result()` từ chối khi chưa trả lời hết, và đó chính là điều kiện mở khóa game 2.
 
 **d) Test**
-`tests/test_game_flow.py` kiểm tra luồng ba game và hiện có 9 test:
+`tests/test_game_flow.py` và `tests/test_final_test.py` kiểm tra luồng ba game, Final Test và hợp đồng kết quả; toàn bộ suite hiện có 34 test:
 - Matching bị khóa cho đến khi fill_blank có kết quả đầy đủ.
 - Fill_blank chưa trả lời hết thì không mở khóa matching.
-- Quiz bị khóa cho đến khi Matching hoàn thành; Quiz hoàn thành đưa luồng tới trạng thái kết thúc.
-- Luồng HTTP thật: trang game bị khóa điều hướng về `/`; sau khi mở khóa thì trang được phục vụ.
+- Quiz bị khóa cho đến khi Matching hoàn thành; hoàn tất Quiz mới mở Final Test.
+- Luồng HTTP thật: khóa trang/API khi chưa hoàn tất bước trước; sau Final Test, trang chủ hiển thị tổng kết.
 - Danh sách file Quiz, cấu trúc dữ liệu, subject và nút chuyển tiếp giữa các game được kiểm tra.
 
 **e) Git**
 Commit nhỏ, mỗi việc một commit, message nói rõ việc; làm trên branch riêng (`theanh-branch`) rồi gộp qua pull request; luôn đọc `git diff` trước khi commit. Commit `d4d41c5` còn cho thấy em dọn repo (bỏ `web/index.html`, dùng redirect từ server).
 
 **f) Không tin AI mù quáng**
-`docs/01-UML-phan-game.md` ghi rõ: sơ đồ chưa render thử thì phải dán vào mermaid.live, tên class/hàm do Agent viết có thể bịa nên phải đối chiếu với code thật. Class `QuizGame`, `FinalTest`, `GameFlow` được ghi là *thiết kế dự kiến*, không giả vờ là đã có.
+`docs/01-UML-phan-game.md` ghi rõ: sơ đồ chưa render thử thì phải dán vào mermaid.live, tên class/hàm do Agent viết có thể bịa nên phải đối chiếu với code thật. Trong code có `EnglishQuizGame` và hàm dựng đề `build_final_quiz`; `GameFlow`/`GAME_ORDER` chưa tồn tại.
 
 ---
 
@@ -251,11 +230,11 @@ Commit nhỏ, mỗi việc một commit, message nói rõ việc; làm trên bra
 | `http.server` (thư viện chuẩn) | Server nhẹ, không cần cài thêm gì |
 | Pydantic, python-dotenv | Kiểm tra JSON do AI sinh, đọc `.env` (có trong `requirements.txt`, module của bạn khác dùng) |
 
-**Em đã biết và dự định áp dụng (chưa có trong repo):**
+**Em đã biết và dự định áp dụng (chưa triển khai như một phần quy trình mặc định):**
 
 | Công cụ | Giúp gì |
 |---|---|
-| `pytest` | `CLAUDE.md` đã ghi dùng pytest nhưng test hiện viết bằng `unittest`; cần thống nhất |
+| `pytest` | Chưa phải lệnh test mặc định; hiện test dùng `unittest` và `requirements.txt` chưa khai báo pytest |
 | `ruff` / `black` | Tự bắt lỗi và định dạng code |
 | `pre-commit` | Chạy lint và test trước mỗi commit |
 | GitHub Actions | Tự chạy test mỗi khi push hoặc mở pull request |

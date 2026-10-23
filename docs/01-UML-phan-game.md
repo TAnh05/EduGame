@@ -8,8 +8,7 @@ Tài liệu này gồm 2 phần:
 
 > Lưu ý trung thực: các sơ đồ dưới đây chưa được render thử trong lúc soạn. Hãy dán từng khối vào
 > **mermaid.live** (Mermaid) hoặc **plantuml.com/plantuml** (PlantUML), kiểm tra, chụp ảnh làm bằng chứng.
-> Các class `QuizGame`, `FinalTest`, `GameFlow` là **thiết kế dự kiến**, chưa chắc đã có trong code;
-> tên và chữ ký hàm của `FillBlankGame`, `MatchingGame` cần đối chiếu lại với `games/fill_blank.py`, `games/matching.py`.
+> **Trạng thái đã đối chiếu code:** `FillBlankGame`, `MatchingGame`, `EnglishQuizGame` có thật; luồng hiện thực bằng `server.py` + `FLOW_STATE`, không có class `GameFlow` hay biến `GAME_ORDER`. Final Test được dựng bằng `games.final_test.build_final_quiz()` và chấm qua `EnglishQuizGame`, không có class `FinalTest` riêng. **Fill Blank được chốt dùng chọn phương án, không gõ đáp án.**
 
 ---
 
@@ -40,7 +39,7 @@ rồi công cụ tự vẽ ra hình. Ba lý do nên làm vậy:
 |---|---|---|
 | 1 | Liệt kê thông tin cần vẽ | "Người chơi chọn đáp án, giao diện gọi `check_one`" |
 | 2 | Chọn loại sơ đồ theo câu hỏi cần trả lời | Hỏi "hàm nào gọi hàm nào" -> sequence |
-| 3 | Viết text theo cú pháp (bảng ở A3) | `UI->>G: check_one(id, answer)` |
+| 3 | Viết text theo cú pháp (bảng ở A3) | `UI->>G: check_one(qid, idx)` |
 | 4 | Dán vào mermaid.live | Thấy hình hiện ngay bên phải |
 | 5 | Sửa lỗi cú pháp, đổi tên cho khớp code | So lại với tên hàm trong file `.py` |
 | 6 | Lưu vào `docs/` và commit | `docs/04-sequence-choi-game.mmd` |
@@ -61,7 +60,7 @@ rồi công cụ tự vẽ ra hình. Ba lý do nên làm vậy:
 
 | Ý muốn diễn đạt | Viết text |
 |---|---|
-| Khai báo class | `class QuizGame { }` |
+| Khai báo class | `class EnglishQuizGame { }` |
 | Hàm public | `+check_one(id, chosen)` |
 | Thuộc tính | `+order list` |
 | Hàm có kiểu trả về | `+result() dict` |
@@ -76,7 +75,7 @@ rồi công cụ tự vẽ ra hình. Ba lý do nên làm vậy:
 |---|---|
 | Người dùng | `actor P as Người ôn bài` |
 | Thành phần hệ thống | `participant UI as Giao diện` |
-| Gọi hàm | `UI->>G: check_one(id, answer)` |
+| Gọi hàm | `UI->>G: check_one(qid, idx)` |
 | Trả kết quả | `G-->>UI: đúng/sai` |
 | Tự gọi chính mình | `S->>S: so sánh` |
 
@@ -96,7 +95,7 @@ rồi công cụ tự vẽ ra hình. Ba lý do nên làm vậy:
 
 ```
 Người chơi chọn đáp án.            ->  P->>UI: Chọn đáp án
-Giao diện gửi cho game.            ->  UI->>G: check_one(id, answer)
+Giao diện gửi cho game.            ->  UI->>G: check_one(qid, idx)
 Game trả đúng hoặc sai.            ->  G-->>UI: đúng/sai
 Hết câu thì giao diện hỏi kết quả. ->  UI->>G: result()
 ```
@@ -110,7 +109,7 @@ sequenceDiagram
     participant UI as Giao diện
     participant G as FillBlankGame
     P->>UI: Chọn đáp án
-    UI->>G: check_one(id, answer)
+    UI->>G: check_one(qid, idx)
     G-->>UI: đúng/sai
     UI->>G: result()
 ```
@@ -212,95 +211,88 @@ flowchart LR
 | Mục | Nội dung |
 |---|---|
 | Tác nhân | Người ôn bài |
-| Tiền điều kiện | `chapter.json` hợp lệ; game đứng trước (nếu có) đã xong |
-| Luồng chính | 1. Hệ thống hiển thị câu có chỗ trống. 2. Người chơi chọn đáp án. 3. Hệ thống báo đúng/sai. 4. Hết câu thì hiện điểm. |
+| Tiền điều kiện | Có các `items` Fill Blank hợp lệ (ít nhất 2 đáp án phân biệt, mỗi `sentence` có một `___`); game này là bước đầu, không yêu cầu hoàn thành game trước |
+| Luồng chính | 1. Server tạo 2–4 lựa chọn từ các đáp án trong bộ câu hỏi. 2. Hệ thống hiển thị câu có chỗ trống. 3. Người chơi **chọn** một phương án. 4. Server chấm theo `qid`/`idx` và phản hồi đúng/sai. 5. Hết câu thì hiện `score/total`. |
 | Luồng thay thế | Dữ liệu sai cấu trúc: hiện lỗi thân thiện. Bấm kết thúc khi chưa trả lời hết: nhắc trả lời hết. |
-| Hậu điều kiện | Kết quả `{score, total, wrong}` được lưu |
+| Hậu điều kiện | Có thể lấy kết quả `{score, total, wrong}` sau khi trả lời hết các câu; server cập nhật `FLOW_STATE` khi gọi `/api/fill_blank/result` của ván chính |
 
-### Đặc tả use case "Làm bài kiểm tra cuối"
+### Đặc tả use case "Làm bài kiểm tra cuối" (đã tích hợp demo)
 
 | Mục | Nội dung |
 |---|---|
 | Tác nhân | Người ôn bài |
 | Tiền điều kiện | Đã hoàn thành cả 3 game |
-| Luồng chính | 1. Hệ thống lấy câu hỏi từ 3 game theo tỷ lệ đã định. 2. Người chơi trả lời lần lượt. 3. Hệ thống chấm điểm. 4. Hiện tổng điểm và danh sách câu sai. |
+| Luồng chính | 1. Dùng câu của ba game trong cùng chương, tối đa 30; nếu vượt thì lấy ngẫu nhiên đều, không ép tỷ lệ. 2. Fill Blank/Matching chuyển thành Quiz với 2–4 lựa chọn; Quiz gốc giữ bốn lựa chọn. 3. Chấm theo `score` = số câu đúng; điểm thang 10 = `10 × score / total`. 4. Hiện kết quả và danh sách câu sai có `source_game`/`source_id`. |
 | Luồng thay thế | Chưa xong game nào: nút bị khóa. |
-| Hậu điều kiện | Điểm tổng kết được lưu để màn hình tổng kết đọc |
+| Hậu điều kiện | Kết quả được giữ trong bộ nhớ của server demo và dùng cho trang tổng kết; trạng thái chưa được lưu lâu dài. |
 
-## B2. Class diagram (Mermaid)
+## B2. Class diagram (Mermaid) — phần **đã có trong code**
+
+Sơ đồ tập trung vào ba class game thật. `server.py` là module điều phối, không phải class `GameFlow`. `MatchingGame.check()` trả kết quả ngay, không có `MatchingGame.result()` trong bản hiện tại.
 
 ```mermaid
 classDiagram
     class FillBlankGame {
         +public_view() dict
-        +check_one(id, answer)
+        +check_one(qid, idx) dict
         +result() dict
     }
     class MatchingGame {
         +public_view() dict
-        +check(pairs)
-        +result() dict
+        +check(pairs) dict
     }
-    class QuizGame {
+    class EnglishQuizGame {
         +public_view() dict
-        +check_one(id, chosen)
+        +check_one(qid, idx) dict
         +result() dict
     }
-    class FinalTest {
-        +build(sources) list
-        +result() dict
-    }
-    class GameFlow {
-        +order list
-        +is_unlocked(game) bool
-        +mark_done(game, result)
-    }
-    GameFlow --> FillBlankGame
-    GameFlow --> MatchingGame
-    GameFlow --> QuizGame
-    FinalTest ..> GameFlow : đọc kết quả
 ```
 
-## B3. Sequence diagram: chơi một game (Mermaid)
+**Phần thiết kế chưa triển khai:** class `GameFlow` và danh sách `GAME_ORDER`. Final Test được dựng bởi `games.final_test.build_final_quiz()` rồi chấm qua `EnglishQuizGame`; không có class `FinalTest` riêng.
+
+## B3. Sequence diagram: chơi **Fill Blank hiện tại** (Mermaid)
 
 ```mermaid
 sequenceDiagram
     actor P as Người ôn bài
-    participant UI as Giao diện
-    participant F as GameFlow
+    participant UI as web/fill_blank.html
+    participant S as server.py
     participant G as FillBlankGame
 
-    P->>UI: Chọn game
-    UI->>F: is_unlocked("fill_blank")
-    F-->>UI: true
-    UI->>G: tạo game từ items
-    G-->>UI: public_view() không có đáp án
-    P->>UI: Chọn đáp án
-    UI->>G: check_one(id, answer)
-    G-->>UI: đúng/sai
-    P->>UI: Hết câu
-    UI->>G: result()
-    G-->>UI: score, total, wrong
-    UI->>F: mark_done("fill_blank", result)
+    P->>UI: Mở Fill Blank
+    UI->>S: POST /api/fill_blank/new
+    S->>G: FillBlankGame(items)
+    G-->>S: public_view() với lựa chọn đã xáo
+    S-->>UI: game_id, questions và options (không đánh dấu đúng)
+    UI-->>P: Câu có chỗ trống, 2–4 lựa chọn
+    P->>UI: Chọn một phương án
+    UI->>S: POST /api/fill_blank/check (game_id, qid, idx)
+    S->>G: check_one(qid, idx)
+    G-->>S: ok, correct_idx, correct_text
+    S-->>UI: Phản hồi sau khi chấm
+    P->>UI: Hoàn thành tất cả câu
+    UI->>S: POST /api/fill_blank/result
+    S->>G: result()
+    G-->>S: score, total, wrong, review
+    S->>S: FLOW_STATE.fill_blank_done = true (ván chính)
+    S-->>UI: Kết quả, nút Tiếp tục
 ```
 
 ## B4. State diagram: trạng thái mở khóa (Mermaid)
 
-Giai đoạn 1 (tuần tự cố định):
+**Hiện tại:** server dùng các cờ trong `FLOW_STATE` để mở khóa ba game, Final Test và tổng kết.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Game1
-    Game1 --> Game2 : xong game 1
-    Game2 --> Game3 : xong game 2
-    Game3 --> FinalTest : xong game 3
-    FinalTest --> Summary : nộp bài
+    [*] --> FillBlank
+    FillBlank --> Matching : result() đã hoàn thành
+    Matching --> Quiz : check() đã hoàn thành
+    Quiz --> FinalTest : result() đã hoàn thành
+    FinalTest --> Summary : result() đã hoàn thành
     Summary --> [*]
 ```
 
-Giai đoạn 2 (random thứ tự 3 game): thứ tự ba trạng thái đầu lấy từ danh sách cấu hình `GAME_ORDER`
-(ví dụ `random.shuffle`), phần còn lại giữ nguyên. Vì vậy mở khóa nên kiểm tra theo **vị trí trong danh sách**,
-không kiểm tra theo số `part` trong JSON.
+Danh sách cấu hình `GAME_ORDER` và random thứ tự là **định hướng giai đoạn 2**, chưa có trong code. Trạng thái server hiện là biến toàn cục phù hợp demo một người dùng, không phải session đa người dùng.
 
 ---
 
