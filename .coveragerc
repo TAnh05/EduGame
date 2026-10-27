@@ -1,0 +1,9 @@
+[run]
+source = ocr_module
+branch = True
+
+[report]
+show_missing = True
+
+[xml]
+output = coverage.xml
