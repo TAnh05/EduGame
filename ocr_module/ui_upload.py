@@ -32,7 +32,8 @@ def invalidate_result(state: dict) -> None:
 
 
 def preview_processed_image(file_bytes, rotation_deg, cfg):
-    original, _ = load_image_from_bytes(file_bytes, apply_exif=cfg.preprocess.enable_exif)
+    original, _ = load_image_from_bytes(file_bytes, apply_exif=cfg.preprocess.enable_exif,
+                                       max_pixels=cfg.limits.max_page_pixels)
     processed, ok, reason, warnings, metrics = run_preprocessing_pipeline(
         pil_to_cv2(original), cfg.preprocess, cfg.quality, rotation_deg,
     )
@@ -126,11 +127,18 @@ def main(text_consumer: TextConsumer | None = None):
     if not uploaded:
         st.info("Tải tài liệu để bắt đầu.")
         return
+    if len(uploaded) > cfg.limits.max_pages:
+        st.error(f"Chọn tối đa {cfg.limits.max_pages} tập tin mỗi lượt.")
+        return
     for identity, file in zip(identities, uploaded):
         file_key = hashlib.sha256(identity.encode()).hexdigest()
         data = file.getvalue()
         state = st.session_state.ocr_states.setdefault(file_key, {"rot": 0, "generation": 0})
         st.subheader(file.name)
+        if len(data) > cfg.limits.max_file_bytes:
+            invalidate_result(state)
+            st.error("Tập tin vượt giới hạn 20 MiB. Hãy chia nhỏ tài liệu.")
+            continue
         is_pdf = file.name.lower().endswith(".pdf")
         start, count = 0, None
         if is_pdf:

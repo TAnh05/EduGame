@@ -112,6 +112,14 @@ class QualityGateConfig:
 
 
 @dataclass
+class ResourceLimits:
+    """Operational guards, independent of OCR quality thresholds."""
+    max_file_bytes: int = 20 * 1024 * 1024
+    max_page_pixels: int = 20_000_000
+    max_pages: int = 50
+
+
+@dataclass
 class OCRModuleConfig:
     """Tập hợp cấu hình tổng thể của module."""
     quality: QualityThresholds = field(default_factory=QualityThresholds)
@@ -120,3 +128,4 @@ class OCRModuleConfig:
     strip: StripSplittingConfig = field(default_factory=StripSplittingConfig)
     gate: QualityGateConfig = field(default_factory=QualityGateConfig)
     debug: bool = False                  # Ghi log và lưu ảnh trung gian nếu True
+    limits: ResourceLimits = field(default_factory=ResourceLimits)

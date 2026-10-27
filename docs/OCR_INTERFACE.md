@@ -24,6 +24,7 @@ UI chỉ báo nhận thành công sau khi callback trả về. Điều này chư
 ## Điều kiện chuyển
 
 - `OCRResult` giữ nguyên bảy trường, kiểu và default. `ok` biểu thị kiểm tra OCR; xác nhận tay không sửa `ok` thành True.
+- `metrics` giữ các khóa trang cuối như trước, bổ sung `per_page`: danh sách `{page, ok, reason, metrics}`. `pages` vẫn để chuỗi rỗng cho trang lỗi; `reason` tổng hợp mọi lỗi. Với PDF chọn trang 2–3, số trang trong chẩn đoán là 2 và 3.
 - `deliver_text(...)` kiểm tra context file/config/góc xoay/phạm vi PDF khớp kết quả hiện tại.
 - Chuỗi phải không rỗng và qua `validate_extracted_text`; không tự dọn hoặc sửa bản người dùng đã xác nhận.
 - Bất kỳ sửa tay hoặc `result.ok=False` đều cần checkbox xác nhận đúng nội dung hiện tại.
@@ -37,3 +38,10 @@ UI chỉ báo nhận thành công sau khi callback trả về. Điều này chư
 `tests/test_handoff_integration.py`: PDFium thật → pipeline với OCR mock → receiver nhận string.
 `tests/test_ui_handoff.py`: Streamlit AppTest cho ảnh/PDF, sửa tay, context và thay kết quả.
 Các test dùng receiver giả; nhóm game cần nối và kiểm thử consumer thật trong nhánh tích hợp của nhóm.
+
+## Giới hạn tài nguyên
+
+`OCRModuleConfig.limits`: 20 MiB/file, 20 triệu pixel/ảnh hoặc trang PDF sau render, tối đa 50 trang/lượt. Vượt giới hạn trả kết quả thất bại rõ ràng, không âm thầm cắt nội dung.
+UI mặc định chọn một trang PDF. Pipeline render và giải phóng lần lượt từng trang; không giữ toàn bộ raster PDF trong RAM. `load_images_from_pdf` giữ API list cho caller cũ, không nên dùng với PDF dài.
+Các giới hạn vận hành không thay ngưỡng chất lượng. Không lưu upload ra đĩa.
+`enable_perspective_warp=True` hiện trả lỗi rõ ràng vì thuật toán chưa triển khai; không bật transform mới trong vòng này.

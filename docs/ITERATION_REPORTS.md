@@ -30,3 +30,18 @@
 | Push | Xác minh SHA từ remote sau commit |
 | Rủi ro còn lại | Receiver nhóm game chưa có trong nhánh OCR; standalone vô hiệu nút chuyển |
 | Tiếp theo | C/D: PDF streaming, lỗi từng trang, tài nguyên, OOM và kiểm thử sâu |
+
+## C1 — IO và tài nguyên
+
+| Trường | Nội dung |
+|---|---|
+| Task | Render PDF tuần tự; giữ chẩn đoán trang; input an toàn |
+| Nguyên nhân | 5 regression mới tái hiện 4 failure + 1 exception: list bytes hỏng crash, item không hỗ trợ bị bỏ qua, mất lỗi trang đầu, cảnh báo EXIF sai, flag perspective không có tác dụng |
+| Files changed | config.py, io_utils.py, pipeline.py, preprocess.py, ui_upload.py, test_resource_safety.py, test_pdf_streaming.py, OCR_INTERFACE.md |
+| Tests | PASS: 28 tests; kiểm chứng render/inference xen kẽ, đóng PDFium handles, guard trước render, partial failure |
+| Regression | Contract OCRResult giữ nguyên; 18 tests A/B pass |
+| Performance | Bằng chứng cấu trúc: một raster/trang tại thời điểm inference; benchmark số liệu được ghi riêng ở vòng D |
+| Commit | Xem Git log: fix(ocr): stream bounded PDF pages and retain page diagnostics |
+| Push | Xác minh SHA từ remote sau commit |
+| Rủi ro còn lại | Chưa có inference thực, chưa thay default preprocessing/gate/model; partial document cần review tay |
+| Tiếp theo | Kiểm thử OOM/cache và báo cáo tài nguyên/coverage |

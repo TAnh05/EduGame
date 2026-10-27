@@ -9,6 +9,8 @@ Hỗ trợ:
 """
 
 import io
+import math
+from contextlib import closing
 from typing import Union, List, Optional
 import numpy as np
 from PIL import Image, ImageOps
@@ -49,15 +51,14 @@ def apply_exif_transpose(image: Image.Image) -> tuple[Image.Image, bool]:
     Trả về (ảnh_sau_khi_xoay, có_bị_xoay_không).
     """
     try:
-        transposed = ImageOps.exif_transpose(image)
-        if transposed is not None and transposed is not image:
-            return transposed, True
-        return image, False
+        orientation = image.getexif().get(274, 1)
+        return ImageOps.exif_transpose(image), orientation in (2, 3, 4, 5, 6, 7, 8)
     except Exception:
         return image, False
 
 
-def load_image_from_bytes(data: bytes, apply_exif: bool = True) -> tuple[Image.Image, list[str]]:
+def load_image_from_bytes(data: bytes, apply_exif: bool = True,
+                          max_pixels: int = 20_000_000) -> tuple[Image.Image, list[str]]:
     """
     Nạp ảnh từ mảng bytes (ví dụ từ Streamlit UploadedFile).
     Trả về (PIL.Image, danh_sách_cảnh_báo).
@@ -66,6 +67,9 @@ def load_image_from_bytes(data: bytes, apply_exif: bool = True) -> tuple[Image.I
     bio = io.BytesIO(data)
     try:
         pil_img = Image.open(bio)
+        if pil_img.width * pil_img.height > max_pixels:
+            pil_img.close()
+            raise ValueError(f"Ảnh vượt giới hạn {max_pixels} pixel.")
         pil_img.load()  # Tải toàn bộ pixel vào RAM
     except Exception as e:
         raise ValueError(f"Không thể đọc định dạng ảnh: {e}")
@@ -78,12 +82,14 @@ def load_image_from_bytes(data: bytes, apply_exif: bool = True) -> tuple[Image.I
     return pil_img.convert("RGB"), warnings
 
 
-def load_images_from_pdf(
+def iter_images_from_pdf(
     pdf_bytes_or_path: Union[bytes, str],
     scale: float = 2.0,
     start_page: int = 0,
     max_pages: Optional[int] = None,
-) -> List[Image.Image]:
+    max_render_pixels: int = 20_000_000,
+    page_limit: int = 50,
+):
     """
     Chuyển đổi từng trang của file PDF thành ảnh PIL với độ phân giải cao.
     `scale=2.0` tương đương khoảng 144 DPI (đủ rõ nét cho OCR).
@@ -91,7 +97,7 @@ def load_images_from_pdf(
     if not PDF_AVAILABLE:
         raise RuntimeError("Thư viện pypdfium2 chưa được cài đặt. Vui lòng chạy: pip install pypdfium2")
 
-    if scale <= 0:
+    if not math.isfinite(scale) or scale <= 0:
         raise ValueError("scale phải lớn hơn 0.")
     if start_page < 0:
         raise ValueError("start_page không được âm.")
@@ -105,18 +111,36 @@ def load_images_from_pdf(
             raise ValueError(f"Trang bắt đầu {start_page + 1} vượt quá tài liệu chỉ có {total_pages} trang.")
 
         end_page = total_pages if max_pages is None else min(total_pages, start_page + max_pages)
-        images: List[Image.Image] = []
+        if end_page - start_page > page_limit:
+            raise ValueError(f"Phạm vi vượt giới hạn {page_limit} trang; hãy chọn phạm vi nhỏ hơn.")
         for page_idx in range(start_page, end_page):
             page = pdf.get_page(page_idx)
             bitmap = None
             try:
+                width, height = page.get_size()
+                if math.ceil(width * scale) * math.ceil(height * scale) > max_render_pixels:
+                    raise ValueError(f"Trang {page_idx + 1} vượt giới hạn {max_render_pixels} pixel render.")
                 bitmap = page.render(scale=scale)
                 # convert() tạo ảnh độc lập trước khi page/bitmap bị giải phóng.
-                images.append(bitmap.to_pil().convert("RGB"))
+                image = bitmap.to_pil().convert("RGB")
             finally:
                 if bitmap is not None:
                     bitmap.close()
                 page.close()
-        return images
+            # No live PDFium page/bitmap is held while inference processes this page.
+            yield image
     finally:
         pdf.close()
+
+
+def load_images_from_pdf(pdf_bytes_or_path, scale=2.0, start_page=0, max_pages=None) -> List[Image.Image]:
+    """Compatibility list API. Pipeline uses the streaming iterator instead."""
+    images = []
+    try:
+        with closing(iter_images_from_pdf(pdf_bytes_or_path, scale, start_page, max_pages)) as pages:
+            images.extend(pages)
+    except Exception:
+        for image in images:
+            image.close()
+        raise
+    return images

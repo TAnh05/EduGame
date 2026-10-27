@@ -7,7 +7,6 @@ Trả về dataclass chuẩn OCRResult sẵn sàng tích hợp với module tạ
 
 from dataclasses import dataclass, field
 from typing import List, Union, Optional, Dict, Any, Tuple
-import numpy as np
 from PIL import Image
 
 from .config import OCRModuleConfig
@@ -15,8 +14,7 @@ from .io_utils import (
     load_image_from_bytes, 
     pil_to_cv2, 
     cv2_to_pil, 
-    load_images_from_pdf,
-    PDF_AVAILABLE
+    iter_images_from_pdf,
 )
 from .preprocess import run_preprocessing_pipeline
 from .postprocess import clean_and_gate_text
@@ -78,6 +76,51 @@ def process_single_image(
     return clean_text, gate_ok, gate_reason, all_warnings, metrics, preview_pil
 
 
+def _iter_inputs(source, cfg, pdf_start_page, pdf_max_pages):
+    """Yield (image, warnings, owned) without pre-rendering an entire PDF."""
+    from pathlib import Path
+    if isinstance(source, str):
+        path = Path(source)
+        if path.stat().st_size > cfg.limits.max_file_bytes:
+            raise ValueError("Tập tin vượt giới hạn dung lượng.")
+        if path.suffix.lower() == ".pdf":
+            yield from _iter_pdf(source, cfg, pdf_start_page, pdf_max_pages)
+            return
+        source = path.read_bytes()
+    if isinstance(source, bytes) and source.startswith(b"%PDF-"):
+        if len(source) > cfg.limits.max_file_bytes:
+            raise ValueError("PDF vượt giới hạn dung lượng.")
+        yield from _iter_pdf(source, cfg, pdf_start_page, pdf_max_pages)
+        return
+    items = source if isinstance(source, list) else [source]
+    if len(items) > cfg.limits.max_pages:
+        raise ValueError("Số ảnh vượt giới hạn số trang.")
+    for item in items:
+        if isinstance(item, Image.Image):
+            if item.width * item.height > cfg.limits.max_page_pixels:
+                raise ValueError("Ảnh vượt giới hạn pixel.")
+            yield item, [], False
+        elif isinstance(item, bytes):
+            if len(item) > cfg.limits.max_file_bytes:
+                raise ValueError("Ảnh vượt giới hạn dung lượng.")
+            image, warnings = load_image_from_bytes(
+                item, apply_exif=cfg.preprocess.enable_exif, max_pixels=cfg.limits.max_page_pixels,
+            )
+            yield image, warnings, True
+        else:
+            raise ValueError("Kiểu đầu vào không hỗ trợ; dùng bytes, path, PIL hoặc list ảnh.")
+
+
+def _iter_pdf(source, cfg, start, count):
+    from contextlib import closing
+    with closing(iter_images_from_pdf(
+        source, start_page=start, max_pages=count,
+        max_render_pixels=cfg.limits.max_page_pixels, page_limit=cfg.limits.max_pages,
+    )) as pages:
+        for image in pages:
+            yield image, [], True
+
+
 def run_pipeline(
     source: Union[bytes, str, Image.Image, List[Any]],
     cfg: Optional[OCRModuleConfig] = None,
@@ -85,110 +128,54 @@ def run_pipeline(
     pdf_start_page: int = 0,
     pdf_max_pages: Optional[int] = None,
 ) -> OCRResult:
-    """
-    Hàm entry point chính của module:
-    Nhận đầu vào linh hoạt (bytes từ UploadedFile, đường dẫn file, PIL Image, hoặc file PDF)
-    và trả về đối tượng chuẩn OCRResult.
-    """
-    if cfg is None:
-        cfg = OCRModuleConfig()
-
-    # Xác định danh sách ảnh PIL cần xử lý
-    images_to_process: List[Image.Image] = []
-    initial_warnings: List[str] = []
-
-    if isinstance(source, bytes):
-        # Kiểm tra xem có phải định dạng PDF không (magic bytes %PDF-)
-        if source.startswith(b"%PDF-"):
-            if not PDF_AVAILABLE:
-                return OCRResult(
-                    text="", 
-                    ok=False, 
-                    reason="Tập tin tải lên là PDF nhưng hệ thống chưa có pypdfium2.", 
-                    warnings=[]
-                )
-            try:
-                images_to_process = load_images_from_pdf(source, start_page=pdf_start_page, max_pages=pdf_max_pages)
-            except (ValueError, RuntimeError) as exc:
-                return OCRResult(text="", ok=False, reason=f"Không thể đọc PDF: {exc}", warnings=initial_warnings)
-            initial_warnings.append(f"Đang xử lý {len(images_to_process)} trang PDF, từ trang {pdf_start_page + 1}.")
-        else:
-            try:
-                img_pil, w = load_image_from_bytes(source, apply_exif=cfg.preprocess.enable_exif)
-            except (ValueError, OSError) as exc:
-                return OCRResult(text="", ok=False, reason=f"Không thể đọc ảnh: {exc}", warnings=initial_warnings)
-            initial_warnings.extend(w)
-            images_to_process.append(img_pil)
-
-    elif isinstance(source, str):
-        if source.lower().endswith(".pdf"):
-            try:
-                images_to_process = load_images_from_pdf(source, start_page=pdf_start_page, max_pages=pdf_max_pages)
-            except (ValueError, RuntimeError) as exc:
-                return OCRResult(text="", ok=False, reason=f"Không thể đọc PDF: {exc}", warnings=initial_warnings)
-            initial_warnings.append(f"Đang xử lý {len(images_to_process)} trang PDF, từ trang {pdf_start_page + 1}.")
-        else:
-            try:
-                with open(source, "rb") as f:
-                    img_pil, w = load_image_from_bytes(f.read(), apply_exif=cfg.preprocess.enable_exif)
-            except (OSError, ValueError) as exc:
-                return OCRResult(text="", ok=False, reason=f"Không thể đọc ảnh: {exc}", warnings=initial_warnings)
-            initial_warnings.extend(w)
-            images_to_process.append(img_pil)
-
-    elif isinstance(source, Image.Image):
-        images_to_process.append(source)
-
-    elif isinstance(source, list):
-        for item in source:
-            if isinstance(item, Image.Image):
-                images_to_process.append(item)
-            elif isinstance(item, bytes):
-                img_pil, w = load_image_from_bytes(item, apply_exif=cfg.preprocess.enable_exif)
-                initial_warnings.extend(w)
-                images_to_process.append(img_pil)
-
-    if not images_to_process:
-        return OCRResult(text="", ok=False, reason="Không tìm thấy ảnh hợp lệ để xử lý.", warnings=initial_warnings)
-
-    page_texts: List[str] = []
-    all_warnings: List[str] = list(initial_warnings)
-    all_metrics: Dict[str, Any] = {}
-    last_preview: Optional[Image.Image] = None
-    overall_ok = True
-    overall_reason = ""
-
-    for idx, img in enumerate(images_to_process):
-        text, ok, reason, warnings, metrics, preview = process_single_image(
-            img, 
-            cfg=cfg, 
-            manual_rotation_deg=manual_rotation_deg
-        )
-        last_preview = preview
-        all_metrics = metrics
-        
-        # Thêm tiền tố số trang nếu nhiều hơn 1 trang
-        prefix = f"[Trang {idx + 1}] " if len(images_to_process) > 1 else ""
-        for w in warnings:
-            all_warnings.append(f"{prefix}{w}")
-            
-        if not ok:
-            overall_ok = False
-            overall_reason = f"{prefix}{reason}"
-            page_texts.append("")
-        else:
-            page_texts.append(text)
-
-    combined_text = "\n\n--- HẾT TRANG ---\n\n".join([p for p in page_texts if p]).strip()
-    if not combined_text and overall_ok:
-        combined_text = "\n\n".join(page_texts).strip()
-
+    """Sequential OCR. Failed pages remain empty; any failure makes ok=False."""
+    from contextlib import closing
+    cfg = cfg or OCRModuleConfig()
+    is_pdf = ((isinstance(source, bytes) and source.startswith(b"%PDF-"))
+              or (isinstance(source, str) and source.lower().endswith(".pdf")))
+    page_texts, warnings, failures, page_details = [], [], [], []
+    last_preview = None
+    last_metrics = {}
+    try:
+        if manual_rotation_deg % 90:
+            raise ValueError("Góc xoay phải là bội số của 90 độ.")
+        if min(cfg.limits.max_pages, cfg.limits.max_page_pixels, cfg.limits.max_file_bytes) <= 0:
+            raise ValueError("Giới hạn tài nguyên phải lớn hơn 0.")
+        with closing(_iter_inputs(source, cfg, pdf_start_page, pdf_max_pages)) as images:
+            for index, (image, input_warnings, owned) in enumerate(images):
+                number = index + 1 + (pdf_start_page if is_pdf else 0)
+                try:
+                    text, ok, reason, page_warnings, metrics, preview = process_single_image(
+                        image, cfg, manual_rotation_deg,
+                    )
+                except Exception as exc:
+                    text, ok, reason = "", False, f"Lỗi xử lý trang: {exc}"
+                    page_warnings, metrics, preview = [], {}, None
+                finally:
+                    if owned:
+                        image.close()
+                prefix = f"[Trang {number}] "
+                warnings.extend(prefix + w for w in input_warnings + page_warnings)
+                if not ok:
+                    failures.append(prefix + reason)
+                page_texts.append(text if ok else "")
+                page_details.append(dict(page=number, ok=ok, reason=reason, metrics=dict(metrics)))
+                last_metrics = dict(metrics)
+                if last_preview is not None and last_preview is not preview:
+                    last_preview.close()
+                last_preview = preview
+    except (ValueError, OSError, RuntimeError) as exc:
+        failures.append(f"Không thể đọc ảnh/PDF: {exc}")
+    if not page_texts and not failures:
+        failures.append("Không tìm thấy ảnh hợp lệ để xử lý.")
+    if is_pdf:
+        warnings.insert(0, f"Đã xử lý {len(page_texts)} trang PDF, từ trang {pdf_start_page + 1}.")
+    # Keep legacy top-level last-page metrics and preview, add page-indexed diagnostics.
+    if page_details:
+        last_metrics["per_page"] = page_details
     return OCRResult(
-        text=combined_text,
-        ok=overall_ok,
-        reason=overall_reason,
-        warnings=all_warnings,
-        pages=page_texts,
-        metrics=all_metrics,
-        processed_preview=last_preview
+        text="\n\n--- HẾT TRANG ---\n\n".join(p for p in page_texts if p).strip(),
+        ok=bool(page_texts) and not failures,
+        reason="; ".join(failures), warnings=warnings, pages=page_texts,
+        metrics=last_metrics, processed_preview=last_preview,
     )
