@@ -15,3 +15,18 @@
 | Push | Xác minh bằng remote SHA sau commit; không dùng báo cáo này làm bằng chứng push |
 | Rủi ro còn lại | Chưa xác minh CI hosted; inference dependencies/model weights chưa cài |
 | Tiếp theo | B: adapter nhận string, kiểm soát chất lượng và trạng thái UI/PDF |
+
+## B — OCR → consumer
+
+| Trường | Nội dung |
+|---|---|
+| Task | Adapter string và UI chung cho ảnh/PDF |
+| Nguyên nhân | PDF kết thúc trước các nút xuất/chuyển; nút ảnh chỉ đặt session_state; editor Streamlit có thể khôi phục nội dung cũ |
+| Files changed | handoff.py, ui_upload.py, test_handoff*.py, test_ui_handoff.py, OCR_INTERFACE.md |
+| Tests | PASS: 18 tests; adapter 100% branch+statement; UI 92%; toàn bộ OCR 58% |
+| Regression | 7 tests vòng A pass; AppTest ảnh/PDF gọi receiver thật nhận đúng string |
+| Performance | Chưa đo inference; không thay thuật toán/model |
+| Commit | Xem Git log: fix(ocr): deliver reviewed image and PDF text through consumer adapter |
+| Push | Xác minh SHA từ remote sau commit |
+| Rủi ro còn lại | Receiver nhóm game chưa có trong nhánh OCR; standalone vô hiệu nút chuyển |
+| Tiếp theo | C/D: PDF streaming, lỗi từng trang, tài nguyên, OOM và kiểm thử sâu |
