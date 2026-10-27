@@ -45,3 +45,21 @@
 | Push | Xác minh SHA từ remote sau commit |
 | Rủi ro còn lại | Chưa có inference thực, chưa thay default preprocessing/gate/model; partial document cần review tay |
 | Tiếp theo | Kiểm thử OOM/cache và báo cáo tài nguyên/coverage |
+
+## C2/D — OOM, cache, CPU inference contract và coverage
+
+| Trường | Nội dung |
+|---|---|
+| Task | Giải phóng tensor trước OOM retry; khóa cache/inference giữa sessions; bổ sung test sâu |
+| Nguyên nhân | Regression weakref tái hiện tensor lỗi còn sống trước fallback; strip_target_lines thay đổi bị bỏ qua |
+| Files changed | ocr_vintern.py, test_inference_mock.py, test_core_edges.py, ci.yml, tools/benchmark_pdf_resources.py |
+| Tests | PASS: 42 tests, không skip, với torch CPU và model giả; full dependency smoke + pip check pass |
+| Regression | 6 test gốc cũng pass trên cùng venv đầy đủ; 28 test A/B/C1 pass; normal generation/dtype không đổi |
+| Performance | PDF 10 trang tổng hợp, render-only: eager 131200 KiB RSS/0.1065s, stream 68688 KiB/0.1323s; raster digest trùng; chưa chứng minh inference nhanh hơn |
+| Coverage | 90% toàn OCR; engine 90%, adapter và image quality gate 100%; ngưỡng CI CPU mock >=75% |
+| Commit | Xem Git log: fix(ocr): release OOM tensors and serialize model cache access |
+| Push | Xác minh SHA từ remote sau commit |
+| Rủi ro còn lại | Không GPU, không tải weights; OOM là mô phỏng, chưa có CER thật; revision mặc định chưa pin, có cảnh báo rõ |
+| Tiếp theo | E: PRD, Mermaid, báo cáo kỹ thuật và demo trong phạm vi OCR |
+
+CI hosted vòng C1 đã xác minh Success, 2 jobs: https://github.com/maitoan2408/EduGame/actions/runs/40551418917 (commit 76b8ba7). Không suy rộng trạng thái này cho commit mới.

@@ -1,0 +1,127 @@
+"""CPU torch + fake model: no weights, GPU or Hugging Face network calls."""
+import gc
+import importlib.util
+import unittest
+import weakref
+from unittest.mock import Mock, patch
+
+from PIL import Image
+
+HAS_TORCH = importlib.util.find_spec('torch') is not None
+
+
+@unittest.skipUnless(HAS_TORCH, 'ML tests run in the separate CPU inference CI job')
+class InferenceMockTests(unittest.TestCase):
+    def setUp(self):
+        import torch
+        from ocr_module import ocr_vintern as engine
+        from ocr_module.config import ModelConfig, StripSplittingConfig
+        self.engine, self.torch = engine, torch
+        self.cfg = ModelConfig(device='cpu', torch_dtype=torch.float32)
+        self.strip = StripSplittingConfig(enable_strip_splitting=False)
+        self.image = Image.new('RGB', (400, 400))
+
+    def test_oom_releases_failed_tensor_before_half_tile_retry(self):
+        torch, engine = self.torch, self.engine
+        refs, tiles = [], []
+        class Pixels:
+            def to(self, dtype): return self
+        def tensor(image, input_size, max_num):
+            if refs:
+                gc.collect()
+                self.assertIsNone(refs[0](), 'failed tensor still alive before retry')
+            value = Pixels()
+            refs.append(weakref.ref(value))
+            tiles.append(max_num)
+            return value
+        class Model:
+            calls = 0
+            def chat(model, *args, **kwargs):
+                model.calls += 1
+                if model.calls == 1:
+                    raise torch.cuda.OutOfMemoryError('simulated')
+                return 'safe output', None
+        with patch.object(engine, 'get_vintern_model', return_value=(Model(), object())), patch.object(engine, 'load_image_tensor', side_effect=tensor):
+            self.assertEqual(engine.ocr_image_vintern(self.image, self.cfg, self.strip), 'safe output')
+        self.assertEqual(tiles, [2, 1])
+
+    def test_retry_failure_is_bounded_and_propagates(self):
+        model = Mock()
+        model.chat.side_effect = self.torch.cuda.OutOfMemoryError('still out of memory')
+        with patch.object(self.engine, 'get_vintern_model', return_value=(model, object())), patch.object(self.engine, 'load_image_tensor', return_value=self.torch.zeros(1)):
+            with self.assertRaises(self.torch.cuda.OutOfMemoryError):
+                self.engine.ocr_image_vintern(self.image, self.cfg, self.strip)
+        self.assertEqual(model.chat.call_count, 2)
+
+    def test_normal_path_preserves_generation_and_dtype(self):
+        model = Mock()
+        model.chat.return_value = ('safe output', None)
+        with patch.object(self.engine, 'get_vintern_model', return_value=(model, object())), patch.object(self.engine, 'load_image_tensor', return_value=self.torch.zeros(1)):
+            result = self.engine.ocr_image_vintern(self.image, self.cfg, self.strip)
+        self.assertEqual(result, 'safe output')
+        args = model.chat.call_args.args
+        self.assertEqual(args[1].dtype, self.torch.float32)
+        self.assertEqual(args[2], self.cfg.prompt)
+        self.assertEqual(args[3], dict(max_new_tokens=1024, do_sample=False, num_beams=1, repetition_penalty=1.2))
+
+    def test_splitting_and_exact_overlap_merge(self):
+        e = self.engine
+        self.assertEqual(e.merge_strip_texts(['alpha\nbeta', 'beta\ngamma']), 'alpha\nbeta\ngamma')
+        self.assertEqual(e.merge_strip_texts([]), '')
+        self.assertEqual(e.merge_strip_texts(['a', 'b']), 'a\nb')
+        from ocr_module.config import StripSplittingConfig
+        strips = e.split_image_into_strips(Image.new('RGB', (600, 2600), 'white'), StripSplittingConfig())
+        self.assertGreater(len(strips), 1)
+
+    def test_reserved_flag_is_not_a_silent_noop(self):
+        self.strip.strip_target_lines = 20
+        with self.assertRaisesRegex(ValueError, 'strip_target_lines'):
+            self.engine.split_image_into_strips(self.image, self.strip)
+
+    def test_real_tensor_shape_and_normalization(self):
+        value = self.engine.load_image_tensor(self.image, input_size=448, max_num=2)
+        self.assertEqual(tuple(value.shape[1:]), (3, 448, 448))
+        self.assertTrue(self.torch.isfinite(value).all())
+
+    def test_model_cache_reuses_and_passes_explicit_revision(self):
+        engine = self.engine
+        self.cfg.revision = 'a' * 40
+        model = Mock()
+        model.eval.return_value = model
+        model.to.return_value = model
+        tokenizer = object()
+        engine.clear_model_cache()
+        try:
+            with patch('transformers.AutoModel.from_pretrained', return_value=model) as loader, patch('transformers.AutoTokenizer.from_pretrained', return_value=tokenizer):
+                first = engine.get_vintern_model(self.cfg)
+                second = engine.get_vintern_model(self.cfg)
+                self.assertEqual(first, second)
+                loader.assert_called_once()
+                self.assertEqual(loader.call_args.kwargs['revision'], 'a' * 40)
+                self.assertTrue(loader.call_args.kwargs['trust_remote_code'])
+                self.cfg.revision = 'b' * 40
+                engine.get_vintern_model(self.cfg)
+                self.assertEqual(loader.call_count, 2)
+        finally:
+            engine.clear_model_cache()
+
+    def test_loader_serializes_concurrent_sessions(self):
+        from concurrent.futures import ThreadPoolExecutor
+        import time
+        engine = self.engine
+        engine.clear_model_cache()
+        self.cfg.revision = 'a' * 40
+        model = Mock()
+        model.eval.return_value = model
+        model.to.return_value = model
+        def slow_load(*args, **kwargs):
+            time.sleep(0.02)
+            return model
+        try:
+            with patch('transformers.AutoModel.from_pretrained', side_effect=slow_load) as loader, patch('transformers.AutoTokenizer.from_pretrained', return_value=object()):
+                with ThreadPoolExecutor(2) as pool:
+                    results = list(pool.map(lambda _: engine.get_vintern_model(self.cfg), range(2)))
+                self.assertIs(results[0][0], results[1][0])
+                loader.assert_called_once()
+        finally:
+            engine.clear_model_cache()

@@ -14,6 +14,11 @@ import torch
 import torchvision.transforms as T
 from torchvision.transforms.functional import InterpolationMode
 from PIL import Image
+from functools import wraps
+from threading import RLock
+import gc
+import re
+import warnings
 
 from .config import ModelConfig, StripSplittingConfig
 
@@ -105,8 +110,28 @@ def load_image_tensor(image: Image.Image, input_size: int = 448, max_num: int = 
 _GLOBAL_MODEL = None
 _GLOBAL_TOKENIZER = None
 _GLOBAL_MODEL_KEY = None
+_MODEL_LOCK = RLock()
 
 
+def _serialized(function):
+    @wraps(function)
+    def locked(*args, **kwargs):
+        with _MODEL_LOCK:
+            return function(*args, **kwargs)
+    return locked
+
+
+@_serialized
+def clear_model_cache():
+    """Explicit release, also used before loading a different model identity."""
+    global _GLOBAL_MODEL, _GLOBAL_TOKENIZER, _GLOBAL_MODEL_KEY
+    _GLOBAL_MODEL = _GLOBAL_TOKENIZER = _GLOBAL_MODEL_KEY = None
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+@_serialized
 def get_vintern_model(cfg: ModelConfig):
     """
     Nạp model và tokenizer một lần duy nhất vào bộ nhớ.
@@ -120,6 +145,11 @@ def get_vintern_model(cfg: ModelConfig):
         and _GLOBAL_MODEL_KEY == model_key
     ):
         return _GLOBAL_MODEL, _GLOBAL_TOKENIZER
+
+    if _GLOBAL_MODEL is not None:
+        clear_model_cache()
+    if cfg.revision is None or not re.fullmatch(r"[0-9a-fA-F]{40}", cfg.revision):
+        warnings.warn("Vintern revision chưa ghim SHA bất biến; chưa đủ điều kiện benchmark/phát hành tái lập.", RuntimeWarning)
 
     from transformers import AutoModel, AutoTokenizer
     from transformers.modeling_utils import PreTrainedModel
@@ -207,6 +237,8 @@ def find_horizontal_split_points(
 
 def split_image_into_strips(img_pil: Image.Image, strip_cfg: StripSplittingConfig) -> List[Image.Image]:
     """Cắt ảnh thành các dải ngang nếu kích thước vượt ngưỡng cho phép."""
+    if strip_cfg.strip_target_lines != 15:
+        raise ValueError("strip_target_lines là trường dự phòng chưa hỗ trợ thay đổi.")
     w, h = img_pil.size
     if not strip_cfg.enable_strip_splitting or h < strip_cfg.split_height_threshold:
         return [img_pil]
@@ -255,6 +287,18 @@ def merge_strip_texts(texts: List[str]) -> str:
 # 4. Hàm thực thi suy luận OCR trên Vintern-1B v3.5
 # -------------------------------------------------------------
 
+def _chat_strip(model, tokenizer, strip, cfg, gen_config, max_num, use_cuda):
+    """Local tensor scope releases references before the caller starts an OOM retry."""
+    pixel_values = load_image_tensor(strip, input_size=cfg.input_size, max_num=max_num).to(cfg.torch_dtype)
+    if use_cuda:
+        pixel_values = pixel_values.cuda()
+    with torch.inference_mode():
+        response, _ = model.chat(tokenizer, pixel_values, cfg.prompt, gen_config,
+                                 history=None, return_history=True)
+    return response
+
+
+@_serialized
 def ocr_image_vintern(
     img_pil: Image.Image, 
     cfg: ModelConfig, 
@@ -264,11 +308,13 @@ def ocr_image_vintern(
     Thực thi OCR trên ảnh bằng Vintern-1B v3.5.
     Tự động chia dải nếu trang dài, và có cơ chế xử lý chống tràn VRAM (OOM fallback).
     """
+    if cfg.max_num < 1 or cfg.min_num != 1:
+        raise ValueError("max_num phải >= 1; min_num hiện chỉ hỗ trợ 1.")
+    strips = split_image_into_strips(img_pil, strip_cfg)
     model, tokenizer = get_vintern_model(cfg)
     use_cuda = cfg.device == "cuda" and torch.cuda.is_available()
     dtype = cfg.torch_dtype
 
-    strips = split_image_into_strips(img_pil, strip_cfg)
     strip_outputs: List[str] = []
 
     gen_config = dict(
@@ -279,43 +325,21 @@ def ocr_image_vintern(
     )
 
     for strip in strips:
-        current_max_num = cfg.max_num
         try:
-            pixel_values = load_image_tensor(strip, input_size=cfg.input_size, max_num=current_max_num).to(dtype)
-            if use_cuda:
-                pixel_values = pixel_values.cuda()
-
-            with torch.inference_mode():
-                response, _ = model.chat(
-                    tokenizer, 
-                    pixel_values, 
-                    cfg.prompt, 
-                    gen_config, 
-                    history=None, 
-                    return_history=True
-                )
-            strip_outputs.append(response)
-
+            response = _chat_strip(model, tokenizer, strip, cfg, gen_config, cfg.max_num, use_cuda)
         except torch.cuda.OutOfMemoryError:
-            # Cơ chế chống tràn VRAM: dọn cache và hạ max_num
-            print(f"[Vintern Canh bao] Tran VRAM voi max_num={current_max_num}. Dang ha max_num va thu lai...")
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            
-            fallback_max_num = max(1, current_max_num // 2)
-            pixel_values = load_image_tensor(strip, input_size=cfg.input_size, max_num=fallback_max_num).to(dtype)
-            if use_cuda:
-                pixel_values = pixel_values.cuda()
-
-            with torch.inference_mode():
-                response, _ = model.chat(
-                    tokenizer, 
-                    pixel_values, 
-                    cfg.prompt, 
-                    gen_config, 
-                    history=None, 
-                    return_history=True
-                )
+            if cfg.max_num <= 1:
+                raise
+            print(f"[Vintern] OOM: retry max_num={cfg.max_num} -> {max(1, cfg.max_num // 2)}")
+        else:
             strip_outputs.append(response)
+            continue
+        # Outside the except block: exception traceback and failed tensors are gone.
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        response = _chat_strip(model, tokenizer, strip, cfg, gen_config,
+                               max(1, cfg.max_num // 2), use_cuda)
+        strip_outputs.append(response)
 
     return merge_strip_texts(strip_outputs)
