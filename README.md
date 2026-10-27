@@ -81,6 +81,20 @@ class OCRResult:
 
 ### 4.1 Cài đặt môi trường
 
+Python 3.12 được hỗ trợ. Kiểm thử CPU không cần torch/GPU và không tải model:
+
+```bash
+python -m venv .venv
+# Linux: source .venv/bin/activate ; Windows: .venv\Scripts\activate
+python -m pip install -r requirements-test.txt
+python test_stage0_env.py --core
+python -m coverage run -m unittest discover -s tests -v
+python -m coverage report
+```
+
+Để chạy OCR thực, cài thêm PyTorch/torchvision phù hợp phần cứng và các gói model bên dưới.
+Chỉ cài requirements-core/test không đủ để inference.
+
 1. **Cài PyTorch với GPU CUDA** (nếu máy có GPU NVIDIA):
    ```bash
    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126

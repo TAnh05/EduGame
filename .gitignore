@@ -63,3 +63,6 @@ $RECYCLE.BIN/
 temp/
 scratch/
 tests/.tmp/
+.coverage*
+coverage.xml
+htmlcov/

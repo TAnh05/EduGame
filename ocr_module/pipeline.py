@@ -20,7 +20,12 @@ from .io_utils import (
 )
 from .preprocess import run_preprocessing_pipeline
 from .postprocess import clean_and_gate_text
-from .ocr_vintern import ocr_image_vintern
+
+
+def ocr_image_vintern(image, model_cfg, strip_cfg):
+    """Load ML dependencies only when inference is actually requested."""
+    from .ocr_vintern import ocr_image_vintern as infer
+    return infer(image, model_cfg, strip_cfg)
 
 
 @dataclass
