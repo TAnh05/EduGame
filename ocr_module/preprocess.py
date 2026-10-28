@@ -164,6 +164,8 @@ def run_preprocessing_pipeline(
     - metrics: dict (các thông số chất lượng đo được)
     """
     warnings: List[str] = []
+    if prep_cfg.enable_perspective_warp:
+        raise ValueError("enable_perspective_warp chưa được triển khai; không thể bật perspective.")
     
     # 1. Xoay thủ công từ giao diện nếu có
     if manual_rotation_deg % 360 != 0:

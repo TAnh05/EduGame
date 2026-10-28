@@ -9,7 +9,23 @@ Bao gồm:
 """
 
 from dataclasses import dataclass, field
-import torch
+from typing import Any
+
+
+def _default_device() -> str:
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def _default_dtype() -> Any:
+    try:
+        import torch
+    except ImportError:
+        return "float32"  # Core tests do not perform inference.
+    return torch.float16 if torch.cuda.is_available() else torch.float32
 
 
 @dataclass
@@ -54,9 +70,9 @@ class ModelConfig:
     revision: str | None = None
     
     # Thiết bị và kiểu dữ liệu (tự chọn phù hợp với phần cứng)
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    device: str = field(default_factory=_default_device)
     # Trên RTX 2050 (4GB VRAM) hoặc T4, dùng float16; trên A100/H100 dùng bfloat16
-    torch_dtype: torch.dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    torch_dtype: Any = field(default_factory=_default_dtype)
     
     # Tham số thị giác InternVL
     input_size: int = 448
@@ -96,6 +112,14 @@ class QualityGateConfig:
 
 
 @dataclass
+class ResourceLimits:
+    """Operational guards, independent of OCR quality thresholds."""
+    max_file_bytes: int = 20 * 1024 * 1024
+    max_page_pixels: int = 20_000_000
+    max_pages: int = 50
+
+
+@dataclass
 class OCRModuleConfig:
     """Tập hợp cấu hình tổng thể của module."""
     quality: QualityThresholds = field(default_factory=QualityThresholds)
@@ -104,3 +128,4 @@ class OCRModuleConfig:
     strip: StripSplittingConfig = field(default_factory=StripSplittingConfig)
     gate: QualityGateConfig = field(default_factory=QualityGateConfig)
     debug: bool = False                  # Ghi log và lưu ảnh trung gian nếu True
+    limits: ResourceLimits = field(default_factory=ResourceLimits)
