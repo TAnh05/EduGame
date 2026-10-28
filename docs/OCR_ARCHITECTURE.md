@@ -35,7 +35,7 @@ sequenceDiagram
     UI->>P: run_pipeline(source, cfg, range)
     loop Từng trang trong phạm vi và giới hạn
         P->>IO: Decode hoặc render một trang
-        IO-->>P: Ảnh độc lập; đóng PDFium page/bitmap
+        IO-->>P: Ảnh độc lập và đóng PDFium page/bitmap
         P->>P: Preprocess và input gate
         alt Ảnh đạt gate
             P->>M: Inference dưới lock

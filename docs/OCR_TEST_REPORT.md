@@ -7,6 +7,7 @@
 - Core Linux/Windows đã được GitHub Actions kiểm chứng; inference-contract CPU cũng xanh tại 9636fd9: [run 40552010114](https://github.com/maitoan2408/EduGame/actions/runs/40552010114). Commit cuối cần đối chiếu đúng SHA ở Actions, không coi CI của commit trước là bằng chứng cho code mới.
 - Smoke full dependency, compileall và pip check pass. CUDA unavailable; OOM là mô phỏng trên CPU.
 - Coverage branch+statement toàn `ocr_module`, gồm evaluator: **87%** (1006 statements, 320 branches); adapter 100%, image quality gate 100%, pipeline 89%, engine 90%, UI 89%. Con số 90% ở vòng trước chưa bao gồm evaluator; phạm vi coverage được mở rộng, không loại code để tăng điểm.
+- Ba sơ đồ trong OCR_ARCHITECTURE.md đã parse thành công bằng Mermaid 11 (DOM giả lập phục vụ parser, không thêm dependency vào dự án). Sửa một dấu chấm phẩy trong message sequence để tránh Mermaid tách thành câu lệnh.
 
 ## Phạm vi tests
 
