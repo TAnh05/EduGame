@@ -10,6 +10,15 @@
 6. Mở GitHub: `git log --oneline`, diff của hai commit PDF và sharpen, workflow CI.
 7. Kết thúc bằng limitation trung thực: chỉ có 3 sample synthetic; chưa tuyên bố accuracy production cho đến khi có tập thật có consent.
 
+## Demo cập nhật cho phân hệ độc lập
+
+1. Mở `OCR_PRD.md`, `OCR_ARCHITECTURE.md`: phạm vi, Mermaid và ranh giới nhóm game.
+2. Chạy `python test_stage0_env.py --core` và `python -m unittest discover -s tests -v`. Có thể demo test UI/consumer giả mà không tải model.
+3. Chỉ demo OCR thật khi full smoke pass, model revision đã review và weights có sẵn. Chọn một trang PDF; thử ảnh hỏng và chỉ rõ reason/metrics.
+4. Sửa text: nút chuyển cần xác nhận đúng bản hiện tại. Đổi góc/config/phạm vi PDF: kết quả cũ bị xóa. Chưa nối consumer thật thì chỉ export TXT, nút chuyển vô hiệu.
+5. Chứng minh giao nhận bằng `test_handoff_integration.py` và AppTest. Giải thích fake consumer chứng minh interface, không chứng minh game đã chạy.
+6. Mở `OCR_TEST_REPORT.md`, defect log, CI GitHub và benchmark RAM. Nêu rõ chưa có GPU/VRAM/CER thật. Quay video dự phòng trên máy demo sau tổng duyệt; hiện chưa có video trong repo.
+
 ## Câu hỏi thường gặp
 
 **“Tính năng X ở đâu?”**  Trả lời theo `FEATURE_MAP.md`: file, hàm, config, test. Không chỉ nói “trong module OCR”.

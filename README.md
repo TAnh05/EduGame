@@ -13,7 +13,7 @@ Hệ thống được thiết kế theo 4 nguyên tắc cốt lõi:
 1. **Đo trước, xử lý sau**: Mọi bước tiền xử lý đều có cờ bật/tắt độc lập và đo lường CER (Character Error Rate) qua Ablation Study.
 2. **Không làm hỏng ảnh**: Giữ ảnh màu/xám tự nhiên, tuyệt đối không nhị phân hóa cứng (Otsu/Binarization) gây mất nét chữ với Vision-Language Model.
 3. **Cổng kiểm tra chất lượng 2 đầu (Quality Gates)**:
-   - *Cổng đầu vào (Ảnh)*: Đo độ mờ (Laplacian variance), độ sáng, tương phản; từ chối ảnh quá mờ hoặc quá tối kèm cảnh báo cụ thể.
+   - *Cổng đầu vào (Ảnh)*: Từ chối ảnh quá nhỏ hoặc quá mờ; độ sáng và tương phản hiện là cảnh báo, chưa hiệu chuẩn thành luật từ chối.
    - *Cổng đầu ra (Văn bản)*: Kiểm tra độ dài tối thiểu, tỷ lệ ký tự hợp lệ, phát hiện model loop (n-gram repetition) và tỷ lệ dấu tiếng Việt.
 4. **Giao diện dữ liệu chuẩn (`OCRResult`)**: Đóng gói đầu ra độc lập với backend, giúp module sinh câu hỏi ôn tập dễ dàng tích hợp.
 
@@ -95,6 +95,8 @@ python -m coverage report
 Để chạy OCR thực, cài thêm PyTorch/torchvision phù hợp phần cứng và các gói model bên dưới.
 Chỉ cài requirements-core/test không đủ để inference.
 
+Máy CPU: `python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu`, sau đó cài `requirements.txt`.
+
 1. **Cài PyTorch với GPU CUDA** (nếu máy có GPU NVIDIA):
    ```bash
    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
@@ -127,7 +129,7 @@ streamlit run ocr_module/ui_upload.py
 - Truy cập `http://localhost:8501`.
 - Kéo thả ảnh hoặc PDF scan, so sánh ảnh gốc và ảnh đã xử lý trực quan.
 - Tùy chỉnh xoay 90° nếu ảnh ngược, xem các chỉ số chất lượng ảnh.
-- Nhận diện văn bản, chỉnh sửa trực tiếp trên giao diện và bấm nút chuyển tiếp sang module tạo câu hỏi game.
+- Nhận diện, chỉnh sửa và tải TXT. Để chuyển game, nhóm tích hợp callback nhận string theo [OCR_INTERFACE.md](docs/OCR_INTERFACE.md); standalone không giả lập giao nhận.
 
 ### 4.5 Đánh giá độ chính xác & Ablation Study
 ```bash
@@ -140,3 +142,16 @@ Script sẽ so sánh 5 cấu hình tiền xử lý:
 - **D**: C + Cân bằng sáng & Khử bóng (CLAHE)
 - **E**: D + Khử nhiễu & Làm nét
 In ra bảng tổng hợp gồm CER trung bình, thời gian xử lý và tỷ lệ từ chối.
+
+Tùy chọn `--images-dir`, `--truth-dir`, `--revision` và `--output` cho tập dữ liệu được phép dùng. Dataset rỗng/thiếu truth báo lỗi. Chưa tải weights hoặc xác minh CER thực trong đợt hoàn thiện này.
+
+## 5. Hồ sơ kỹ thuật OCR
+
+- [Đặc tả và nghiệm thu](docs/OCR_PRD.md)
+- [Kiến trúc, Mermaid và quyết định](docs/OCR_ARCHITECTURE.md)
+- [Interface tích hợp](docs/OCR_INTERFACE.md)
+- [Defect log](docs/OCR_DEFECT_LOG.md)
+- [Báo cáo kiểm thử](docs/OCR_TEST_REPORT.md)
+- [Benchmark tài nguyên](docs/experiments/PDF_RESOURCE_BENCHMARK.md)
+- [Các vòng triển khai](docs/ITERATION_REPORTS.md)
+- [Demo và bảo vệ](docs/DEFENSE_GUIDE.md)

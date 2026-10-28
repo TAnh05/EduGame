@@ -13,6 +13,11 @@ import glob
 import time
 import re
 import unicodedata
+import argparse
+import json
+import platform
+import subprocess
+from dataclasses import asdict
 from typing import Dict, Any, List, Tuple
 from pathlib import Path
 
@@ -61,14 +66,8 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(_CURRENT_DIR))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-import torch
-
-try:
-    from ocr_module.config import OCRModuleConfig
-    from ocr_module.pipeline import run_pipeline, OCRResult
-except ImportError:
-    from config import OCRModuleConfig
-    from pipeline import run_pipeline, OCRResult
+from ocr_module.config import OCRModuleConfig
+from ocr_module.pipeline import run_pipeline, OCRResult
 
 
 def clean_text_for_cer(text: str) -> str:
@@ -168,7 +167,11 @@ def evaluate_dataset(
     
     if not image_paths:
         print(f"Không tìm thấy ảnh nào trong thư mục: {images_dir}")
-        return {"cer_avg": 0.0, "total_samples": 0}
+        return {"error": "Dataset không có ảnh; không thể kết luận CER.", "total_samples": 0}
+
+    missing = [Path(p).name for p in image_paths if not (Path(truth_dir) / (Path(p).stem + '.txt')).is_file()]
+    if missing:
+        return {"error": "Thiếu ground truth cho: " + ", ".join(missing)}
 
     results = []
     total_time = 0.0
@@ -178,15 +181,12 @@ def evaluate_dataset(
         base_name = Path(img_path).stem
         truth_path = os.path.join(truth_dir, f"{base_name}.txt")
         
-        if not os.path.exists(truth_path):
-            continue
-            
         with open(truth_path, "r", encoding="utf-8") as f:
             ground_truth = f.read()
 
-        t0 = time.time()
+        t0 = time.perf_counter()
         res: OCRResult = run_pipeline(img_path, cfg=cfg)
-        elapsed = time.time() - t0
+        elapsed = time.perf_counter() - t0
         total_time += elapsed
 
         if not res.ok:
@@ -200,7 +200,8 @@ def evaluate_dataset(
             "image": Path(img_path).name,
             "cer": sample_cer,
             "ok": res.ok,
-            "time_sec": elapsed
+            "time_sec": elapsed,
+            "reason": res.reason,
         })
 
     n = len(results)
@@ -219,7 +220,7 @@ def evaluate_dataset(
     }
 
 
-def run_ablation_study(images_dir: str, truth_dir: str):
+def run_ablation_study(images_dir: str, truth_dir: str, revision: str | None = None):
     """Thực thi toàn bộ thí nghiệm ablation và in bảng tổng kết so sánh."""
     configs = get_ablation_configs()
     print("=" * 75)
@@ -227,12 +228,15 @@ def run_ablation_study(images_dir: str, truth_dir: str):
     print("=" * 75)
 
     summary_table = []
+    detailed_report = {}
     for name, cfg in configs.items():
+        cfg.model.revision = revision
         print(f"\n--- Đang đánh giá: {name} ---")
         metrics = evaluate_dataset(images_dir, truth_dir, cfg)
         if "error" in metrics:
             print(f"Lỗi: {metrics['error']}")
-            return
+            return {"error": metrics['error']}
+        detailed_report[name] = {"config": asdict(cfg), **metrics}
             
         summary_table.append({
             "Cấu hình": name,
@@ -247,21 +251,21 @@ def run_ablation_study(images_dir: str, truth_dir: str):
     for row in summary_table:
         print(f"{row['Cấu hình']:<30} | {row['CER Trung bình']:<15} | {row['Thời gian/trang']:<12} | {row['Tỉ lệ từ chối']}")
     print("=" * 75)
+    return detailed_report
 
 
 if __name__ == "__main__":
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    img_dir = os.path.join(current_dir, "images")
-    tru_dir = os.path.join(current_dir, "truth")
-    
-    os.makedirs(img_dir, exist_ok=True)
-    os.makedirs(tru_dir, exist_ok=True)
-    
-    print(f"Thư mục ảnh test: {img_dir}")
-    print(f"Thư mục đáp án chuẩn: {tru_dir}")
-    
-    if len(os.listdir(img_dir)) == 0:
-        print("\n[Hướng dẫn] Hãy thêm các ảnh mẫu (.jpg, .png) vào ocr_module/eval/images/")
-        print("và tạo file text đáp án chuẩn tương ứng (.txt) vào ocr_module/eval/truth/ để bắt đầu đo CER.")
-    else:
-        run_ablation_study(img_dir, tru_dir)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--images-dir', default=str(Path(__file__).parent / 'images'))
+    parser.add_argument('--truth-dir', default=str(Path(__file__).parent / 'truth'))
+    parser.add_argument('--revision', help='Immutable Hugging Face model SHA for reproducible runs')
+    parser.add_argument('--output', type=Path, help='Explicit destination for JSON details; do not commit private data')
+    args = parser.parse_args()
+    details = run_ablation_study(args.images_dir, args.truth_dir, args.revision)
+    if 'error' in details:
+        raise SystemExit(1)
+    commit = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
+    report = dict(commit=commit, python=platform.python_version(), platform=platform.platform(),
+                  scope='Dataset must have provenance; bundled samples are synthetic smoke tests only', results=details)
+    if args.output:
+        args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding='utf-8')

@@ -63,3 +63,21 @@
 | Tiếp theo | E: PRD, Mermaid, báo cáo kỹ thuật và demo trong phạm vi OCR |
 
 CI hosted vòng C1 đã xác minh Success, 2 jobs: https://github.com/maitoan2408/EduGame/actions/runs/40551418917 (commit 76b8ba7). Không suy rộng trạng thái này cho commit mới.
+
+## D/E — Evaluator, hồ sơ OCR và đo kiểm
+
+| Trường | Nội dung |
+|---|---|
+| Task | Sửa lỗi dataset rỗng/thiếu truth; giữ chi tiết eval; thêm profiler và hồ sơ OCR |
+| Nguyên nhân | test_eval tái hiện CER=0 trên dataset rỗng và thiếu chẩn đoán rejection; tài liệu PRD/Mermaid/interface chưa đầy đủ |
+| Files changed | eval/run_eval.py, test_eval.py, test_profile.py, test_ui_handoff.py, tools/profile_ocr.py, README và docs OCR |
+| Tests | PASS: 49 tests không skip, full smoke, compileall, pip check, diff check |
+| Regression | Tất cả A–D pass; defaults/gates/normalization CER không đổi |
+| Performance | Ba lần PDF render độc lập: median RSS 130064 → 68584 KiB, giảm 47.3%; digest giống nhau. Xem benchmark report |
+| Coverage | 87% với phạm vi mở rộng gồm evaluator; adapter 100% |
+| Commit | Xem Git log: feat(ocr): add auditable evaluation and OCR defense documentation |
+| Push | Xác minh bằng remote SHA và Actions của commit này sau push |
+| Rủi ro còn lại | Model thật/GPU/CER/consumer game thật chưa được cung cấp; model SHA chưa pin |
+| Tiếp theo | Chủ phân hệ xác nhận model SHA, dữ liệu và máy demo; nhóm game nối callback và test tích hợp thật |
+
+CI hosted C2/D: cả 3 jobs Success tại https://github.com/maitoan2408/EduGame/actions/runs/40552010114 (9636fd9).

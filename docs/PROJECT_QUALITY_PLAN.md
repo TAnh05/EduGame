@@ -6,7 +6,7 @@ Nâng độ tin cậy của OCR mà không làm giảm khả năng đọc tài l
 
 ## Giai đoạn 0 — thiết lập đường cơ sở
 
-- Chạy `python test_stage0_env.py` sau khi sửa môi trường; hiện lệnh này bị chặn trước khi vào test vì trình khởi chạy Python đang trỏ tới `C:\Users\PC\AppData\Local\Programs\Python\Python313\python.exe` không tồn tại.
+- Môi trường Cloud Python 3.12 đã hoạt động; chạy `python test_stage0_env.py --core` cho core hoặc bỏ `--core` khi đã cài đầy đủ torch/torchvision và requirements.txt. Smoke hiện trả mã lỗi đúng khi thiếu dependency. Xem `OCR_TEST_REPORT.md` về môi trường và bằng chứng mới.
 - Chạy `python -m ocr_module.eval.run_eval` khi môi trường Python đã hoạt động; ghi lại commit, GPU/CPU, phiên bản dependency và A–E baseline.
 - Xác nhận ba cặp mẫu dưới `ocr_module/eval/` là smoke test tổng hợp, không dùng chúng để kết luận chất lượng.
 

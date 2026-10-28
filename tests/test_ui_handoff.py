@@ -16,6 +16,8 @@ from unittest.mock import patch
 import streamlit as st
 from ocr_module.ui_upload import main
 def receive(text):
+    if st.session_state.get('consumer_error'):
+        raise RuntimeError('receiver unavailable')
     st.session_state['received'] = st.session_state.get('received', []) + [text]
 files = []
 for name, data in st.session_state.get('files', []):
@@ -106,3 +108,12 @@ class UIHandoffTests(unittest.TestCase):
         self.button(app, "Chuyển văn bản sang game").click().run()
         self.assertNotIn('received', app.session_state)
         self.assertNotIn('game_raw_text', app.session_state)
+
+    def test_consumer_exception_is_shown_without_success_payload(self):
+        app = self.app()
+        self.extract(app)
+        app.session_state['consumer_error'] = True
+        self.button(app, "Chuyển văn bản sang game").click().run()
+        self.assertNotIn('game_raw_text', app.session_state)
+        self.assertNotIn('received', app.session_state)
+        self.assertTrue(any('receiver unavailable' in error.value for error in app.error))
