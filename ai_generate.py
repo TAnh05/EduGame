@@ -290,7 +290,7 @@ def validate_input_text(clean_text: str) -> str:
     return text_stripped
 
 
-def call_gemini_api(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
+def call_gemini_api(prompt: str, model_name: str = "gemini-2.5-flash") -> str:
     """
     Gọi Google Gemini API sinh dữ liệu JSON theo prompt.
     API key được lấy từ biến môi trường GEMINI_API_KEY (.env).
