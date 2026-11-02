@@ -38,7 +38,7 @@ Khi viết test case mới, phân chia theo đúng kiến trúc của 3 file tes
 - **Kịch bản bắt buộc:**
   1. Văn bản đầu vào rỗng (TC05).
   2. Văn bản quá ngắn dưới 50 từ (TC04).
-  3. Văn bản vượt ngưỡng an toàn > 20.000 ký tự (TC06).
+  3. Văn bản vượt ngưỡng an toàn > 15.000 ký tự (TC06).
   4. Cơ chế Cache (F09): Tái sử dụng file kết quả có sẵn trên đĩa, không gọi lại API.
   5. Cơ chế Fallback (TC08): Tự nạp `sample_chapter.json` khi ngắt kết nối mạng.
   6. Kiểm tra ngân hàng câu hỏi Game cuối: Đảm bảo bốc đúng 10 câu theo tỷ lệ 3 câu điền từ – 3 câu nối từ – 4 câu trắc nghiệm.

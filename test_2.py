@@ -198,6 +198,8 @@ def test_generate_chapter_end_to_end_and_save():
     # Dọn dẹp file test
     if os.path.exists(test_out):
         os.remove(test_out)
+    if os.path.exists(f"{test_out}.hash"):
+        os.remove(f"{test_out}.hash")
 
     print("[PASS] Pipeline sinh Chapter đầy đủ 3 phần & lưu JSON chuẩn hợp đồng 100%!")
 
@@ -227,6 +229,8 @@ def test_fallback_mechanism_when_api_disconnected():
     # Dọn dẹp
     if os.path.exists(test_out):
         os.remove(test_out)
+    if os.path.exists(f"{test_out}.hash"):
+        os.remove(f"{test_out}.hash")
 
     print("[PASS] Cơ chế fallback dữ liệu dự phòng (TC08) hoạt động chính xác!")
 

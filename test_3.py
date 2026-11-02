@@ -200,6 +200,8 @@ def test_f09_cache_mechanism():
 
     if os.path.exists(test_out):
         os.remove(test_out)
+    if os.path.exists(f"{test_out}.hash"):
+        os.remove(f"{test_out}.hash")
     print("[PASS - F09] Cơ chế Cache hoạt động hoàn hảo, tiết kiệm 100% quota API khi chơi lại!")
 
 
@@ -235,6 +237,8 @@ def test_create_final_quiz_pool_3_3_4():
 
     if os.path.exists(test_out):
         os.remove(test_out)
+    if os.path.exists(f"{test_out}.hash"):
+        os.remove(f"{test_out}.hash")
     print("[PASS] Tạo Game cuối 10 câu tỷ lệ 3-3-4 và lưu truy vết câu sai thành công 100%!")
 
 

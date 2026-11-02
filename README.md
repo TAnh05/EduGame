@@ -5,13 +5,13 @@
 ## 1. DANH SÁCH FILE VÀ CHỨC NĂNG
 
 ### 1.1. Mã nguồn chính
-* **`ai_generate.py`**: File trung tâm của dự án.
-  * Định nghĩa cấu trúc dữ liệu và luật kiểm tra cho 3 mini-game bằng Pydantic (`FillBlankItem`, `MatchingItem`, `QuizItem`).
-  * Kết nối Google Gemini API để sinh câu hỏi từ văn bản giáo trình.
-  * Phân tích cú pháp JSON, kiểm tra tính hợp lệ dữ liệu.
-  * Xử lý cơ chế tự động thử lại (Retry tối đa 2 lần) khi AI trả về sai format hoặc vi phạm luật.
-  * Cung cấp cơ chế dự phòng (Fallback) tự nạp dữ liệu mẫu khi mất kết nối mạng.
-  * Tạo ngân hàng câu hỏi Game cuối theo tỷ lệ 3–3–4.
+* **`ai_generate.py`**: Module xuất bản các giao diện chính (Facade), đảm bảo cổng giao tiếp thống nhất cho toàn bộ hệ thống.
+* **`ai_module/`**: Package kiến trúc phân tầng xử lý cốt lõi:
+  * `models.py`: Định nghĩa cấu trúc dữ liệu và luật kiểm tra cho 3 mini-game bằng Pydantic V2 (`FillBlankItem`, `MatchingItem`, `QuizItem`, `ChapterModel`).
+  * `gemini_client.py`: Kết nối Google Gemini API và bóc tách Markdown code fence.
+  * `pipeline.py`: Xử lý phân đoạn văn bản, cơ chế thử lại (Retry tối đa 2 lần) và nạp dữ liệu dự phòng (Fallback).
+  * `final_quiz.py`: Thuật toán tạo ngân hàng câu hỏi tổng hợp Game cuối theo tỷ lệ 3–3–4.
+  * `__init__.py`: Đóng gói và xuất khẩu giao diện chung của package.
 
 * **`prompts.py`**: Chứa toàn bộ câu lệnh chỉ dẫn (prompt) gửi cho AI.
   * Định nghĩa `SYSTEM_PROMPT` quy định vai trò chuyên gia sư phạm của AI và bắt buộc chỉ trả về định dạng JSON thuần.
@@ -38,7 +38,7 @@
   * Kiểm tra quy trình sinh trọn vẹn 1 chương gồm đủ cả 3 game.
 
 * **`test_3.py`**: Kiểm thử các ca biên ngoại lệ và tính năng mở rộng.
-  * Kiểm tra bắt lỗi khi văn bản đầu vào rỗng, quá ngắn (dưới 50 từ) hoặc quá dài (vượt 20.000 ký tự).
+  * Kiểm tra bắt lỗi khi văn bản đầu vào rỗng, quá ngắn (dưới 50 từ) hoặc quá dài (vượt 15.000 ký tự).
   * Kiểm tra cơ chế Cache: Tái sử dụng file kết quả có sẵn trên đĩa, không gọi lại API.
   * Kiểm tra cơ chế Fallback: Tự nạp dữ liệu mẫu có sẵn khi mất kết nối API.
   * Kiểm tra thuật toán bốc ngẫu nhiên câu hỏi cho Game cuối theo đúng tỷ lệ 3–3–4.

@@ -13,3 +13,7 @@ __pycache__/
 cache/
 scratch/
 temp/
+*.hash
+data/*.hash
+data/test_*
+data/demo_output.json
