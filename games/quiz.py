@@ -2,9 +2,16 @@
 from __future__ import annotations
 
 import random
+import threading
+import unicodedata
 import uuid
 
 BLANK = "___"
+
+
+def _norm(text: str) -> str:
+    return unicodedata.normalize("NFC", " ".join(text.split()).casefold())
+
 
 def get_quiz_items(data: dict) -> list[dict]:
     for part in data.get("parts", []):
@@ -25,7 +32,7 @@ def validate_items(items: list[dict], allow_variable_options: bool = False) -> l
         if not isinstance(qid, str) or not qid.strip():
             problems.append(f"Câu #{n} thiếu trường 'id'.")
         else:
-            ids.append(qid)
+            ids.append(qid.strip())
         question_text = it.get("q", it.get("sentence", ""))
         if not isinstance(question_text, str) or not question_text.strip():
             problems.append(f"Câu #{n} thiếu nội dung câu hỏi.")
@@ -39,6 +46,8 @@ def validate_items(items: list[dict], allow_variable_options: bool = False) -> l
         ):
             expected = "từ 2 đến 4" if allow_variable_options else "đúng 4"
             problems.append(f"Câu #{n} phải có {expected} phương án không rỗng.")
+        elif len({_norm(option) for option in options}) != len(options):
+            problems.append(f"Câu #{n} có phương án bị trùng hoặc nhập nhằng.")
         answer = it.get("answer")
         option_count = len(options) if isinstance(options, list) else 0
         if (
@@ -61,6 +70,7 @@ class EnglishQuizGame:
         self.items = items
         self.id = uuid.uuid4().hex
         self.chosen: dict[str, int] = {}
+        self._check_lock = threading.Lock()
         self.questions = self._build()
 
     def _build(self) -> list[dict]:
@@ -105,18 +115,19 @@ class EnglishQuizGame:
         }
 
     def check_one(self, qid: str, idx) -> dict:
-        q = next((q for q in self.questions if q["id"] == qid), None)
-        if q is None:
-            raise ValueError("Câu hỏi không tồn tại.")
-        if qid not in self.chosen:
-            if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < len(q["options"]):
-                raise ValueError("Lựa chọn không hợp lệ.")
-            self.chosen[qid] = idx
-        return {
-            "ok": self.chosen[qid] == q["correct"],
-            "correct_idx": q["correct"],
-            "correct_text": q["options"][q["correct"]]
-        }
+        with self._check_lock:
+            q = next((q for q in self.questions if q["id"] == qid), None)
+            if q is None:
+                raise ValueError("Câu hỏi không tồn tại.")
+            if qid not in self.chosen:
+                if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < len(q["options"]):
+                    raise ValueError("Lựa chọn không hợp lệ.")
+                self.chosen[qid] = idx
+            return {
+                "ok": self.chosen[qid] == q["correct"],
+                "correct_idx": q["correct"],
+                "correct_text": q["options"][q["correct"]]
+            }
 
     def result(self) -> dict:
         if len(self.chosen) != len(self.questions):

@@ -21,7 +21,7 @@ Các module nhóm khác quản lý: `preprocess.py` (Toàn), `ai_generate.py` v�
 - Python 3.10+; phần game dùng `http.server` từ thư viện chuẩn; frontend là HTML/CSS/JavaScript thuần trong `web/`.
 - `requirements.txt` dành cho các module dự án khác: Streamlit, PyMuPDF, python-docx, Anthropic, Pydantic, python-dotenv. **Phần game hiện dùng server HTML độc lập, không phải Streamlit.** Cách tích hợp/triển khai toàn dự án vẫn **[Cần chốt]**.
 - Chạy phần game: `python server.py`, mở `http://127.0.0.1:8000/`.
-- Chạy test: `python -m unittest discover -s tests -v` (34 test đã xác minh trong snapshot hiện tại). `pytest` chưa được khai báo trong `requirements.txt`; chỉ dùng khi có sẵn hoặc đã được duyệt cài thêm.
+- Chạy test: `python -m unittest discover -s tests -v` (49 test đã xác minh sau cập nhật validation game). `pytest` chưa được khai báo trong `requirements.txt`; chỉ dùng khi có sẵn hoặc đã được duyệt cài thêm.
 
 ## 4. Bản đồ mã nguồn thực tế
 
@@ -49,7 +49,7 @@ preprocess.py, ai_generate.py, prompts.py, summary.py, app.py
 2. Game nhận các `items` đã lấy từ phần tương ứng trong JSON. `public_view()` chỉ trả thông tin câu hỏi/phương án **không đánh dấu phương án đúng**. Việc chấm và công bố đáp án nằm ở phía server sau khi người chơi kiểm tra bài.
 3. Từng game có `__init__(items)` kiểm tra dữ liệu (báo lỗi `ValueError`), `public_view()`, hàm chấm `check()`/`check_one()` và `result()` khi phù hợp. `MatchingGame.check(pairs)` trả kết quả trực tiếp, không có `result()` riêng trong bản hiện tại.
 4. Kết quả giữ hợp đồng `{"score": int, "total": int, "wrong": [id, ...]}` và có thể kèm `review`. **`score` = số câu/cặp đúng, không phải điểm trên thang 100.** Giao diện hiện hiển thị `score/total`.
-5. Mỗi item có `id` ổn định, không trùng trong phần. Không tự thay JSON schema/chữ ký API khi chưa có yêu cầu.
+5. Mỗi item có `id` dạng chuỗi ổn định, không rỗng hoặc trùng trong phần. Không tự thay JSON schema/chữ ký API khi chưa có yêu cầu.
 6. **Luồng hiện tại:** Fill Blank → Matching → Quiz → Final Test → Tổng kết. Server kiểm soát bằng các cờ `FLOW_STATE` cùng `ACTIVE_*_GAME_ID`; **chưa có biến `GAME_ORDER` và chưa có class `GameFlow`**. `GAME_ORDER`/thứ tự ngẫu nhiên chỉ là **thiết kế giai đoạn sau**.
 7. `FLOW_STATE` là biến toàn cục và server chưa phân lập phiên người dùng; hiện phù hợp nhất cho demo một người. Server yêu cầu ba game dùng cùng `subject` và `chapter_title` để dựng Final Test; chưa phải thiết kế đa người dùng.
 
@@ -72,8 +72,8 @@ Theo **hợp đồng thiết kế**, `subject` là `english` hoặc `philosophy`
 ### Hành vi đã chốt của ba game
 
 - **Fill Blank (giữ dạng chọn đáp án):** `sentence` chứa đúng một `___`, `answer` là chuỗi không rỗng. `FillBlankGame` sử dụng đáp án của câu hiện tại và tối đa 3 đáp án khác làm lựa chọn nhiễu, xáo thứ tự, hiện **từ 2 đến 4 phương án** tùy nguồn. Bộ items phải có **ít nhất 2 đáp án khác nhau sau chuẩn hóa** để tạo phương án. Giao diện chọn một phương án, gửi `{game_id, qid, idx}` đến `POST /api/fill_blank/check`; `check_one(qid, idx)` so sánh theo chỉ số. Đáp án đúng không được đánh dấu trong `public_view()`; chỉ trả `correct_idx`/`correct_text` sau khi chấm. Hàm `_norm` dùng khi gom/loại trùng đáp án nhiễu, **không dùng để chấm câu trả lời dạng gõ**.
-- **Matching:** ghép `term` với `definition`, gửi `pairs` (ID thuật ngữ → chỉ số định nghĩa), chấm theo ID; `MatchingGame.check(pairs)` trả kết quả.
-- **Quiz:** mỗi item có 4 `options` trong JSON và `answer` là chỉ số nguyên 0–3. `EnglishQuizGame.check_one(qid, idx)` chấm từng câu.
+- **Matching:** ghép `term` với `definition`, gửi `pairs` (ID thuật ngữ → chỉ số định nghĩa), chấm theo ID; mỗi ID, thuật ngữ và định nghĩa phải hợp lệ và duy nhất sau chuẩn hóa chữ hoa/thường, khoảng trắng. `MatchingGame.check(pairs)` chỉ ghi nhận lần nộp đầu tiên; gửi lại không thay đổi kết quả.
+- **Quiz:** mỗi item có 4 `options` dạng chuỗi, phân biệt sau chuẩn hóa chữ hoa/thường và khoảng trắng; `answer` là chỉ số nguyên 0–3. `EnglishQuizGame.check_one(qid, idx)` chấm một lần cho mỗi câu.
 
 **Khác nhau:** Fill Blank tự sinh phương án từ những câu khác trong cùng bộ dữ liệu; Quiz nhận sẵn đúng 4 phương án từ dữ liệu JSON. **Không được tự đổi Fill Blank thành ô nhập văn bản** trừ khi người dùng/nhóm đưa yêu cầu mới.
 

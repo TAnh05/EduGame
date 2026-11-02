@@ -40,6 +40,7 @@ select{font:inherit;padding:6px;margin-top:10px;max-width:100%}
 const $ = s => document.querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let game = null, title = "", i = 0, sel = null, last = null, res = null, reviewOnly = false;
+const ATTEMPT_STORAGE_KEY = "edu_game_attempt_id";
 
 async function api(path, body) {
   const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
@@ -48,23 +49,41 @@ async function api(path, body) {
   if (!r.ok) throw new Error(j.error || "Lỗi không xác định");
   return j;
 }
+function tabAttemptId() {
+  return sessionStorage.getItem(ATTEMPT_STORAGE_KEY);
+}
 async function guard(fn) { try { $("#err").textContent = ""; await fn(); } catch (e) { $("#err").textContent = e.message; } }
 
-async function start(onlyIds) {
+async function start(onlyIds, restart = false) {
   await guard(async () => {
-    const g = await api("/api/fill_blank/new", {file: $("#file").value, only_ids: onlyIds});
-    game = g; title = g.title; i = 0; sel = null; last = null; res = null;
+    const body = {file: $("#file").value, only_ids: onlyIds};
+    const attemptId = game?.attempt_id || tabAttemptId();
+    if (attemptId) body.attempt_id = attemptId;
+    if (restart) body.restart = true;
+    const g = await api("/api/fill_blank/new", body);
+    game = g; title = g.title;
+    i = g.questions.findIndex(q => !g.progress?.[q.id]);
+    if (i < 0) i = g.questions.length;
+    sel = null; last = null; res = null;
     reviewOnly = Boolean(onlyIds && onlyIds.length); draw();
   });
 }
 function draw() {
   const n = game.questions.length;
-  $("#prog").style.width = (100 * (i + (last ? 1 : 0)) / n) + "%";
+  const progress = game.progress || {};
+  const completed = Object.keys(progress).length;
+  $("#prog").style.width = (100 * completed / n) + "%";
   if (i >= n) return finish();
   const q = game.questions[i], checked = !!last;
   const word = sel !== null ? esc(q.options[sel].text) : "";
   const col = checked ? (last.ok ? "#58a700" : "#ea2b2b") : "inherit";
-  let h = `<div class="sub">${esc(title)}</div><div class="owl">🦉</div>
+  const rows = game.questions.filter(item => progress[item.id]).map(item => {
+    const saved = progress[item.id];
+    return `<li>${esc(item.before)}___${esc(item.after)} — ${esc(item.options[saved.idx].text)}
+      (${saved.ok ? "đúng" : "sai"})</li>`;
+  }).join("");
+  let h = `<details><summary>Đã trả lời ${completed}/${n} câu</summary><ul>${rows}</ul></details>
+   <div class="sub">${esc(title)}</div><div class="owl">🦉</div>
    <div class="q">${esc(q.before)}<span class="blank" style="color:${col}">${word}</span>${esc(q.after)}</div>`;
   for (const o of q.options) {
     let c = "opt";
@@ -81,14 +100,20 @@ function draw() {
 }
 async function act() {
   await guard(async () => {
-    if (!last) { last = await api("/api/fill_blank/check", {game_id: game.game_id, qid: game.questions[i].id, idx: sel}); }
+    if (!last) {
+      last = await api("/api/fill_blank/check", {
+        attempt_id: game.attempt_id, game_id: game.game_id,
+        qid: game.questions[i].id, idx: sel
+      });
+      game.progress[game.questions[i].id] = {...last, idx: sel};
+    }
     else { i++; sel = null; last = null; }
     draw();
   });
 }
 async function finish() {
   await guard(async () => {
-    res = await api("/api/fill_blank/result", {game_id: game.game_id});
+    res = await api("/api/fill_blank/result", {attempt_id: game.attempt_id, game_id: game.game_id});
     let h = `<div class="owl">🏆</div><div class="q">Hoàn thành!<br>Điểm: ${res.score}/${res.total}</div>`;
     for (const r of res.review.filter(r => !r.ok))
       h += `<div class="rev">[${esc(r.id)}] ${esc(r.sentence)}<br>Bạn chọn: ${esc(r.chosen)} · Đúng: <b>${esc(r.correct)}</b></div>`;
@@ -96,20 +121,41 @@ async function finish() {
     if (res.wrong.length) h += `<button class="act bad" id="redo">Ôn câu sai</button>`;
     if (!reviewOnly) h += `<button class="act" id="continue">Tiếp tục</button>`;
     $("#main").innerHTML = h + "</div>";
-    $("#again").onclick = () => start();
+    $("#again").onclick = () => start(undefined, true);
     if (res.wrong.length) $("#redo").onclick = () => start(res.wrong);
     if (!reviewOnly) $("#continue").onclick = () => {
-      window.location.href = `/matching.html?subject=${encodeURIComponent(game.subject)}`;
+      window.location.href = `/matching.html?subject=${encodeURIComponent(game.subject)}&attempt_id=${encodeURIComponent(game.attempt_id)}`;
     };
   });
 }
-$("#quit").onclick = () => start();
-$("#file").onchange = () => start();
+$("#quit").onclick = () => start(undefined, true);
+$("#file").onchange = () => start(undefined, true);
 guard(async () => {
   const {files} = await api("/api/fill_blank/files");
   if (!files.length) throw new Error("Không tìm thấy file *fill_blank*.json trong thư mục data/.");
   $("#file").innerHTML = files.map(f => `<option>${esc(f)}</option>`).join("");
-  const pref = files.find(f => f.includes("philosophy")); if (pref) $("#file").value = pref;
-  await start();
+  let attemptId = tabAttemptId();
+  if (!attemptId) {
+    const created = await api("/api/attempts/new", {});
+    attemptId = created.attempt_id;
+    sessionStorage.setItem(ATTEMPT_STORAGE_KEY, attemptId);
+  }
+  const session = await api(`/api/session?attempt_id=${encodeURIComponent(attemptId)}`);
+  const attempt = session.attempt;
+  const pref = files.find(f => f.includes(attempt?.subject || ""));
+  if (pref) $("#file").value = pref;
+  const active = attempt.review_games?.fill_blank || attempt.games?.fill_blank;
+  if (active) game = active;
+  reviewOnly = Boolean(attempt.review_games?.fill_blank);
+  const defaultPref = files.find(f => f.includes("philosophy"));
+  if (!active && !attempt.subject && defaultPref) $("#file").value = defaultPref;
+  if (active) {
+    title = active.title;
+    i = active.questions.findIndex(q => !active.progress?.[q.id]);
+    if (i < 0) i = active.questions.length;
+    draw();
+  } else {
+    await start();
+  }
 });
 </script></body></html>

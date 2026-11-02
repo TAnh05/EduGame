@@ -22,8 +22,17 @@ Sửa server.py cho chơi theo thứ tự
 - Test: `tests/test_final_test.py`, `tests/test_game_flow.py`; acceptance tests được thực thi, không còn SKIP do thiếu code.
 - Phạm vi còn lại: upload tài liệu, sinh câu hỏi AI, tích hợp Streamlit và hỗ trợ nhiều phiên/người dùng.
 
-# Cập nhật tài liệu (quyết định hiện hành): Fill Blank giữ dạng chọn đáp án
+# Cập nhật tài liệu (quyết định hiện hành): Fill Blank giữ dạng chọn đáp án - Đã xong
 - Xác nhận **không chuyển Fill Blank sang ô gõ đáp án**.
 - Đồng bộ `CLAUDE.md`, `README.md`, `docs/01-kich-ban.md`, `docs/01-UML-phan-game.md` và ba skill để phản ánh `FillBlankGame.check_one(qid, idx)`.
 - Lựa chọn Fill Blank được sinh từ các `answer` trong bộ items (2–4 lựa chọn), không phải 4 `options` có sẵn như Quiz.
 - Không thay đổi code game, HTML, server hoặc test trong đợt cập nhật tài liệu này.
+
+# Việc cần làm (lần 5): Đã hoàn tất
+- Chuẩn hóa đáp án theo Unicode NFC, chữ hoa/thường và khoảng trắng; giữ nguyên chuỗi đáp án gốc khi hiển thị và có test hồi quy.
+- Khắc phục riêng Fill Blank ôn một câu sai và Final Test từ Matching một cặp; mỗi trường hợp có test độc lập.
+- Mỗi tab chọn attempt bằng ID, khôi phục đúng attempt sau F5; xác minh quyền sở hữu ở các API game và từ chối session hết hạn mà không mở lại attempt cũ.
+- Giới hạn body 2 MiB và 120 POST/phút/session; cấu hình cookie `Secure` rõ ràng theo HTTPS/trusted proxy. Database phiên cùng WAL/SHM được `.gitignore` loại khỏi repository/gói nguồn.
+- Giữ transaction `BEGIN IMMEDIATE` cho các thao tác ghi đáp án và kết quả; dùng deferred transaction cho truy vấn đọc trạng thái/danh sách attempt.
+- Sửa phản hồi của câu cuối để API vẫn trả dữ liệu chấm một câu; sửa giao diện Quiz/Final Test dựng nội dung câu từ dữ liệu công khai.
+- Chạy đủ test hiện có và mới; load test 10, 50, 100 client đều không có lỗi request, sai lệch điểm hoặc lẫn session/attempt. Chi tiết phần cứng, điều kiện, lệnh chạy và số liệu xem [`docs/load-test-report.md`](./load-test-report.md).

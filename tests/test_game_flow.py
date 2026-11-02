@@ -1,6 +1,7 @@
 import http.client
 import json
 import threading
+import tempfile
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -10,6 +11,9 @@ import server
 
 class GameFlowTests(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        server.configure_database(Path(self.temp_dir.name) / "flow.sqlite3")
+        server.reset_for_tests()
         server.MATCHING_GAMES.clear()
         server.FILL_GAMES.clear()
         server.QUIZ_GAMES.clear()
@@ -30,16 +34,20 @@ class GameFlowTests(unittest.TestCase):
         server.ACTIVE_MATCHING_REVIEW_ONLY = False
         server.ACTIVE_QUIZ_REVIEW_ONLY = False
 
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
     def complete_fill_blank(self):
         game_view = server.fill_api_new({"file": "sample_philosophy_fill_blank.json"})
         game = server.FILL_GAMES[game_view["game_id"]]
         question_by_id = {question["id"]: question for question in game.questions}
         for question in game_view["questions"]:
-            server.fill_api_check({
+            response = server.fill_api_check({
                 "game_id": game_view["game_id"],
                 "qid": question["id"],
                 "idx": question_by_id[question["id"]]["correct"],
             })
+            self.assertIn("ok", response)
         return server.fill_api_result({"game_id": game_view["game_id"]})
 
     def complete_matching(self):
@@ -60,22 +68,24 @@ class GameFlowTests(unittest.TestCase):
         game_view = server.quiz_api_new({"file": "sample_philosophy_quiz.json"})
         game = server.QUIZ_GAMES[game_view["game_id"]]
         for question in game.questions:
-            server.quiz_api_check({
+            response = server.quiz_api_check({
                 "game_id": game_view["game_id"],
                 "qid": question["id"],
                 "idx": question["correct"],
             })
+            self.assertIn("ok", response)
         return server.quiz_api_result({"game_id": game_view["game_id"]})
 
     def complete_final_test(self):
         game_view = server.final_test_api_new()
         game = server.FINAL_TEST_GAMES[game_view["game_id"]]
         for question in game.questions:
-            server.final_test_api_check({
+            response = server.final_test_api_check({
                 "game_id": game_view["game_id"],
                 "qid": question["id"],
                 "idx": question["correct"],
             })
+            self.assertIn("ok", response)
         return server.final_test_api_result({"game_id": game_view["game_id"]})
 
     def test_matching_is_locked_until_full_fill_blank_result(self):
@@ -114,6 +124,33 @@ class GameFlowTests(unittest.TestCase):
         self.assertGreater(len(quiz_view["questions"]), 0)
         self.assertEqual(quiz_view["subject"], "philosophy")
 
+    def test_matching_api_keeps_first_submitted_result(self):
+        self.complete_fill_blank()
+        game_view = server.matching_api_new(
+            {"file": "sample_philosophy_matching.json"}
+        )
+        game = server.MATCHING_GAMES[game_view["game_id"]]
+        correct_pairs = {
+            item["id"]: game.order.index(item["definition"]) for item in game.items
+        }
+        wrong_pairs = {
+            item["id"]: game.order.index(game.items[1 - index]["definition"])
+            for index, item in enumerate(game.items)
+        }
+
+        first_result = server.matching_api_check({
+            "game_id": game_view["game_id"],
+            "pairs": correct_pairs,
+        })
+        second_result = server.matching_api_check({
+            "game_id": game_view["game_id"],
+            "pairs": wrong_pairs,
+        })
+
+        self.assertEqual(first_result["score"], len(game.items))
+        self.assertEqual(second_result, first_result)
+        self.assertEqual(server.FLOW_RESULTS["matching"], first_result)
+
     def test_completed_quiz_finishes_game_flow(self):
         self.complete_fill_blank()
         self.complete_matching()
@@ -137,6 +174,59 @@ class GameFlowTests(unittest.TestCase):
         self.assertTrue(all(
             "correct" not in question and "correct_idx" not in question
             for question in final_view["questions"]
+        ))
+
+    def test_reopening_final_test_preserves_active_attempt(self):
+        self.complete_fill_blank()
+        self.complete_matching()
+        self.complete_quiz()
+        first_view = server.final_test_api_new()
+        game = server.FINAL_TEST_GAMES[first_view["game_id"]]
+        question = game.questions[0]
+        game.check_one(question["id"], question["correct"])
+
+        reopened_view = server.final_test_api_new()
+
+        self.assertEqual(reopened_view["game_id"], first_view["game_id"])
+        self.assertEqual(reopened_view["questions"], first_view["questions"])
+        self.assertEqual(game.chosen[question["id"]], question["correct"])
+
+    def test_creating_final_test_after_submission_does_not_clear_result(self):
+        self.complete_fill_blank()
+        self.complete_matching()
+        self.complete_quiz()
+        result = self.complete_final_test()
+        active_game_id = server.ACTIVE_FINAL_TEST_GAME_ID
+
+        with self.assertRaisesRegex(ValueError, "đã hoàn thành"):
+            server.final_test_api_new()
+
+        self.assertEqual(server.FLOW_RESULTS["final_test"], result)
+        self.assertEqual(server.ACTIVE_FINAL_TEST_GAME_ID, active_game_id)
+        self.assertTrue(server.FLOW_STATE["final_test_done"])
+
+    def test_final_test_completion_saves_full_result_before_result_endpoint(self):
+        """Completing the last question must be enough for the summary page."""
+        self.complete_fill_blank()
+        self.complete_matching()
+        self.complete_quiz()
+        final_view = server.final_test_api_new()
+        game = server.FINAL_TEST_GAMES[final_view["game_id"]]
+        for question in game.questions:
+            server.final_test_api_check({
+                "game_id": final_view["game_id"],
+                "qid": question["id"],
+                "idx": question["correct"],
+            })
+        # Deliberately do NOT call /api/final_test/result.
+        state = server._session_state(server._direct_session_id)["attempt"]
+        self.assertTrue(state["done"]["final_test"])
+        result = state["results"]["final_test"]
+        self.assertEqual(result["grade_10"], 10)
+        self.assertEqual(result["score"], result["total"])
+        self.assertTrue(all(
+            item["source_game"] in ("fill_blank", "matching", "quiz")
+            and item["source_id"] for item in result["review"]
         ))
 
     def test_final_test_requires_all_games_to_use_same_chapter(self):
@@ -176,8 +266,31 @@ class GameFlowTests(unittest.TestCase):
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
-        connection = http.client.HTTPConnection("127.0.0.1", httpd.server_port)
+        class SessionConnection(http.client.HTTPConnection):
+            cookie = ""
+
+            def request(self, method, url, body=None, headers=None, *, encode_chunked=False):
+                request_headers = dict(headers or {})
+                if self.cookie:
+                    request_headers["Cookie"] = self.cookie
+                super().request(method, url, body, request_headers,
+                                encode_chunked=encode_chunked)
+
+            def getresponse(self):
+                response = super().getresponse()
+                set_cookie = response.getheader("Set-Cookie")
+                if set_cookie:
+                    self.cookie = set_cookie.split(";", 1)[0]
+                return response
+
+        connection = SessionConnection("127.0.0.1", httpd.server_port)
         try:
+            connection.request("GET", "/")
+            response = connection.getresponse()
+            self.assertEqual(response.status, 303)
+            response.read()
+            server._direct_session_id = connection.cookie.partition("=")[2]
+
             connection.request(
                 "POST", "/api/final_test/new", body="{}", headers={"Content-Type": "application/json"}
             )
@@ -188,7 +301,7 @@ class GameFlowTests(unittest.TestCase):
             connection.request("GET", "/final_test.html")
             response = connection.getresponse()
             self.assertEqual(response.status, 303)
-            self.assertEqual(response.getheader("Location"), "/")
+            self.assertEqual(response.getheader("Location"), "/fill_blank.html")
             response.read()
 
             connection.request("GET", "/")
@@ -206,35 +319,36 @@ class GameFlowTests(unittest.TestCase):
             connection.request("GET", "/matching.html")
             response = connection.getresponse()
             self.assertEqual(response.status, 303)
-            self.assertEqual(response.getheader("Location"), "/")
+            self.assertEqual(response.getheader("Location"), "/fill_blank.html")
             response.read()
 
             self.complete_fill_blank()
-            connection.request("GET", "/matching.html")
+            attempt_id = server._session_state(server._direct_session_id)["attempt"]["attempt_id"]
+            connection.request("GET", f"/matching.html?attempt_id={attempt_id}")
             response = connection.getresponse()
             self.assertEqual(response.status, 200)
             response.read()
 
-            connection.request("GET", "/quiz.html")
+            connection.request("GET", f"/quiz.html?attempt_id={attempt_id}")
             response = connection.getresponse()
             self.assertEqual(response.status, 303)
-            self.assertEqual(response.getheader("Location"), "/")
+            self.assertEqual(response.getheader("Location"), f"/?attempt_id={attempt_id}")
             response.read()
 
             self.complete_matching()
-            connection.request("GET", "/quiz.html")
+            connection.request("GET", f"/quiz.html?attempt_id={attempt_id}")
             response = connection.getresponse()
             self.assertEqual(response.status, 200)
             response.read()
 
             self.complete_quiz()
-            connection.request("GET", "/")
+            connection.request("GET", f"/?attempt_id={attempt_id}")
             response = connection.getresponse()
             self.assertEqual(response.status, 303)
-            self.assertEqual(response.getheader("Location"), "/final_test.html")
+            self.assertEqual(response.getheader("Location"), f"/final_test.html?attempt_id={attempt_id}")
             response.read()
 
-            connection.request("GET", "/final_test.html")
+            connection.request("GET", f"/final_test.html?attempt_id={attempt_id}")
             response = connection.getresponse()
             self.assertEqual(response.status, 200)
             response.read()
@@ -277,7 +391,20 @@ class GameFlowTests(unittest.TestCase):
             final_result = json.loads(response.read())
             self.assertEqual(final_result["grade_10"], 10)
 
-            connection.request("GET", "/")
+            connection.request("GET", f"/final_test.html?attempt_id={attempt_id}")
+            response = connection.getresponse()
+            self.assertEqual(response.status, 303)
+            self.assertEqual(response.getheader("Location"), f"/?attempt_id={attempt_id}")
+            response.read()
+
+            connection.request(
+                "POST", "/api/final_test/new", body="{}", headers={"Content-Type": "application/json"}
+            )
+            response = connection.getresponse()
+            self.assertEqual(response.status, 400)
+            response.read()
+
+            connection.request("GET", f"/?attempt_id={attempt_id}")
             response = connection.getresponse()
             self.assertEqual(response.status, 200)
             self.assertIn("Hoàn thành lượt ôn tập", response.read().decode("utf-8"))
@@ -298,10 +425,14 @@ class GameFlowTests(unittest.TestCase):
         self.assertIn("window.location.href = `/matching.html?subject=", fill_page)
         self.assertIn("encodeURIComponent(game.subject)", fill_page)
         self.assertIn("'Tiếp tục'", matching_page)
-        self.assertIn("`/quiz.html?subject=${encodeURIComponent(game.subject || '')}`", matching_page)
-        self.assertIn("new URLSearchParams(window.location.search)", matching_page)
+        self.assertIn("`/quiz.html?subject=${encodeURIComponent(game.subject || '')}&attempt_id=", matching_page)
+        self.assertIn("sessionStorage.getItem(ATTEMPT_STORAGE_KEY)", matching_page)
         self.assertIn('api("/api/quiz/files")', quiz_page)
         self.assertIn('api("/api/quiz/new"', quiz_page)
+        self.assertIn("function questionText(question)", quiz_page)
+        self.assertIn("function questionText(question)", (root / "web" / "final_test.html").read_text(
+            encoding="utf-8"))
+        self.assertNotIn("item.question_text", quiz_page)
 
     def test_quiz_logic_rejects_invalid_answer_shapes(self):
         with self.assertRaisesRegex(ValueError, "đúng 4 phương án"):

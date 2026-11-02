@@ -44,6 +44,7 @@
 <script>
 const COLORS = ['#3b82f6','#f97316','#22c55e','#a855f7','#eab308','#ef4444','#92400e','#64748b','#0ea5e9','#ec4899'];
 const $ = s => document.querySelector(s);
+const ATTEMPT_STORAGE_KEY = 'edu_game_attempt_id';
 let source = {}, game = null, pairs = {}, sel = null, reviewOnly = false;   // pairs: {term_id: definition_idx}
 
 function el(tag, cls, text) {
@@ -58,14 +59,29 @@ async function api(path, body) {
   if (!r.ok) throw new Error(j.error || 'Lỗi không xác định');
   return j;
 }
+function tabAttemptId() {
+  return sessionStorage.getItem(ATTEMPT_STORAGE_KEY);
+}
 function showError(e) { const p = el('p','err', e.message); $('#app').replaceChildren(p); }
 
 async function start(onlyIds) {
   try {
     const body = source.data ? { data: source.data } : { file: source.file };
     if (onlyIds) body.only_ids = onlyIds;
+    const attemptId = game?.attempt_id || tabAttemptId();
+    if (attemptId) body.attempt_id = attemptId;
+    if (!onlyIds && start.restart) body.restart = true;
     game = await api('/api/matching/new', body);
-    pairs = {}; sel = null; reviewOnly = Boolean(onlyIds && onlyIds.length); render();
+    start.restart = false;
+    pairs = game.pairs || {}; sel = null; reviewOnly = Boolean(onlyIds && onlyIds.length); render();
+  } catch (e) { showError(e); }
+}
+start.restart = false;
+async function savePairs() {
+  try {
+    await api('/api/matching/progress', {
+      attempt_id: game.attempt_id, game_id: game.game_id, pairs
+    });
   } catch (e) { showError(e); }
 }
 
@@ -73,11 +89,13 @@ const ownerOf = (side, key) => side === 't' ? (key in pairs ? key : null)
                               : (Object.keys(pairs).find(k => pairs[k] === key) ?? null);
 
 function click(side, key) {
-  if (ownerOf(side, key) !== null) { delete pairs[ownerOf(side, key)]; sel = null; return render(); }  // gỡ cặp
+  if (ownerOf(side, key) !== null) {
+    delete pairs[ownerOf(side, key)]; sel = null; render(); savePairs(); return;
+  }  // gỡ cặp
   if (sel && sel.side === side && sel.key === key) { sel = null; return render(); }                    // bỏ chọn
   if (sel && sel.side !== side) {                                                                       // tạo cặp
     pairs[side === 't' ? key : sel.key] = side === 'd' ? key : sel.key;
-    sel = null; return render();
+    sel = null; render(); savePairs(); return;
   }
   sel = { side, key }; render();
 }
@@ -102,7 +120,7 @@ function render() {
   game.definitions.forEach(d => R.append(cell('d', d.idx, d.text)));
   const cols = el('div','cols'); cols.append(L, R);
   const check = el('button','btn','Kiểm tra đáp án'); check.disabled = done < n;
-  check.onclick = async () => { try { showResult(await api('/api/matching/check', { game_id: game.game_id, pairs })); } catch (e) { showError(e); } };
+  check.onclick = async () => { try { showResult(await api('/api/matching/check', { attempt_id: game.attempt_id, game_id: game.game_id, pairs })); } catch (e) { showError(e); } };
   const hint = sel ? 'Đang chọn 1 ô - hãy bấm ô tương ứng ở cột bên kia.' : 'Bấm một thuật ngữ rồi bấm định nghĩa tương ứng. Bấm lại ô đã ghép để gỡ cặp.';
   const actions = el('div','actions'); actions.append(check);
   app.replaceChildren(el('h2','', game.title || ''), bar, el('p','muted', `Đã ghép ${done}/${n} cặp · ${hint}`), cols, actions);
@@ -117,14 +135,16 @@ function showResult(res) {
     d.append(b, document.createTextNode(r.ok ? ` → ${r.correct}` : ` → bạn chọn: ${r.chosen} · đúng: ${r.correct}`));
     return d;
   });
-  const again = el('button','btn alt','🔄 Chơi lại'); again.onclick = () => start();
+  const again = el('button','btn alt','🔄 Chơi lại'); again.onclick = () => {
+    start.restart = true; start();
+  };
   const actions = el('div','actions');
   actions.append(again);
   if (res.wrong.length) { const r = el('button','btn','📝 Ôn lại câu sai'); r.onclick = () => start(res.wrong); actions.append(r); }
   if (!reviewOnly) {
     const continueButton = el('button','btn','Tiếp tục');
     continueButton.onclick = () => {
-      window.location.href = `/quiz.html?subject=${encodeURIComponent(game.subject || '')}`;
+      window.location.href = `/quiz.html?subject=${encodeURIComponent(game.subject || '')}&attempt_id=${encodeURIComponent(game.attempt_id)}`;
     };
     actions.append(continueButton);
   }
@@ -140,13 +160,31 @@ $('#upload').onchange = async e => {
   try {
     const { files } = await api('/api/matching/files');
     $('#files').replaceChildren(...files.map(f => { const o = el('option','',f); o.value = f; return o; }));
-    const subject = new URLSearchParams(window.location.search).get('subject');
+    let attemptId = tabAttemptId();
+    if (!attemptId) {
+      window.location.replace('/fill_blank.html');
+      return;
+    }
+    const session = await api(`/api/session?attempt_id=${encodeURIComponent(attemptId)}`);
+    const attempt = session.attempt;
+    const subject = attempt?.subject || new URLSearchParams(window.location.search).get('subject');
     if (subject) {
       const file = files.find(f => f.includes(subject));
-      if (!file) throw new Error(`Không tìm thấy file nối từ cho môn "${subject}".`);
-      source = { file };
-      $('#files').value = file;
-      start();
+      const active = attempt?.review_games?.matching || attempt?.games?.matching;
+      if (file) {
+        source = { file };
+        $('#files').value = file;
+      } else if (!active) {
+        throw new Error(`Không tìm thấy file nối từ cho môn "${subject}".`);
+      }
+      if (active) {
+        game = active; pairs = active.pairs || {};
+        reviewOnly = Boolean(attempt.review_games?.matching);
+        if (active.result) showResult(active.result);
+        else render();
+      } else {
+        start();
+      }
     } else if (files.length) {
       source = { file: files[0] };
       start();

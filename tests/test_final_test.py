@@ -189,6 +189,59 @@ class FinalQuizBuilderAcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ít nhất 2 phương án"):
             final_test.build_final_quiz(chapter)
 
+    def test_final_test_builds_matching_question_with_one_matching_pair(self):
+        chapter = {
+            "subject": "english",
+            "chapter_title": "One matching pair",
+            "parts": [
+                {"game": "fill_blank", "items": [
+                    {"id": "f1", "sentence": "A ___", "answer": "alpha"},
+                    {"id": "f2", "sentence": "B ___", "answer": "beta"},
+                ]},
+                {"game": "matching", "items": [
+                    {"id": "m1", "term": "alpha", "definition": "first"},
+                ]},
+                {"game": "quiz", "items": [{
+                    "id": "q1", "q": "Pick one", "options": ["A", "B", "C", "D"], "answer": 0,
+                }]},
+            ],
+        }
+
+        items = final_test.build_final_quiz(chapter)
+        matching_item = next(item for item in items if item["source_game"] == "matching")
+        self.assertGreaterEqual(len(matching_item["options"]), 2)
+        self.assertEqual(matching_item["options"][matching_item["answer"]], "first")
+
+    def test_answer_normalization_handles_case_whitespace_and_unicode_canonically(self):
+        composed = "Caf\u00e9"
+        decomposed = "CAFE\u0301"
+        chapter = {
+            "subject": "english",
+            "chapter_title": "Unicode normalization",
+            "parts": [
+                {"game": "fill_blank", "items": [
+                    {"id": "f1", "sentence": "A ___", "answer": f"  {composed}  "},
+                    {"id": "f2", "sentence": "B ___", "answer": f" {decomposed} "},
+                    {"id": "f3", "sentence": "C ___", "answer": "different"},
+                ]},
+                {"game": "matching", "items": [
+                    {"id": "m1", "term": "one", "definition": "first"},
+                ]},
+                {"game": "quiz", "items": [{
+                    "id": "q1", "q": "Pick one", "options": ["A", "B", "C", "D"], "answer": 0,
+                }]},
+            ],
+        }
+
+        items = final_test.build_final_quiz(chapter)
+        question = next(item for item in items if item["source_id"] == "f1")
+        normalized_options = {
+            final_test._normalize(option) for option in question["options"]
+        }
+        self.assertEqual(len(normalized_options), len(question["options"]))
+        self.assertIn(f"  {composed}  ", question["options"])
+        self.assertEqual(question["options"][question["answer"]], f"  {composed}  ")
+
     def test_correct_answer_preserved_for_each_original_game(self):
         chapter = sample_chapter()
         expected = {

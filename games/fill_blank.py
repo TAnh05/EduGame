@@ -9,13 +9,15 @@ Kết quả theo hợp đồng chung: {"score": int, "total": int, "wrong": [id,
 from __future__ import annotations
 
 import random
+import threading
+import unicodedata
 import uuid
 
 BLANK = "___"
 
 
 def _norm(text: str) -> str:
-    return " ".join(str(text).split()).casefold()
+    return unicodedata.normalize("NFC", " ".join(str(text).split()).casefold())
 
 
 def get_fill_items(data: dict) -> list[dict]:
@@ -26,7 +28,7 @@ def get_fill_items(data: dict) -> list[dict]:
     raise ValueError("Không tìm thấy phần 'fill_blank' trong dữ liệu JSON.")
 
 
-def validate_items(items) -> list[str]:
+def validate_items(items, *, require_distinct_answers: bool = True) -> list[str]:
     """Trả về danh sách lỗi (rỗng nếu dữ liệu hợp lệ)."""
     if not isinstance(items, list) or not items:
         return ["Không có câu nào để chơi."]
@@ -36,14 +38,20 @@ def validate_items(items) -> list[str]:
             problems.append(f"Câu #{n} không đúng định dạng.")
             continue
         for field in ("id", "sentence", "answer"):
-            if not str(it.get(field, "")).strip():
-                problems.append(f"Câu #{n} thiếu trường '{field}'.")
-        if str(it.get("sentence", "")).count(BLANK) != 1:
+            value = it.get(field)
+            if not isinstance(value, str) or not value.strip():
+                problems.append(f"Câu #{n} thiếu trường '{field}' hợp lệ.")
+        sentence = it.get("sentence")
+        if isinstance(sentence, str) and sentence.count(BLANK) != 1:
             problems.append(f"Câu #{n} phải có đúng một chỗ trống '{BLANK}'.")
-    ids = [it["id"] for it in items if isinstance(it, dict) and "id" in it]
+    ids = [
+        it["id"].strip() for it in items
+        if isinstance(it, dict) and isinstance(it.get("id"), str) and it["id"].strip()
+    ]
     if len(ids) != len(set(ids)):
         problems.append("Có id bị trùng nhau.")
-    if not problems and len({_norm(it["answer"]) for it in items}) < 2:
+    if (not problems and require_distinct_answers
+            and len({_norm(it["answer"]) for it in items}) < 2):
         problems.append("Cần ít nhất 2 đáp án khác nhau để tạo lựa chọn.")
     return problems
 
@@ -51,13 +59,19 @@ def validate_items(items) -> list[str]:
 class FillBlankGame:
     """Một ván điền chỗ trống. Giữ đáp án ở phía server, giao diện chỉ nhận câu đã xáo."""
 
-    def __init__(self, items: list[dict]):
-        problems = validate_items(items)
+    def __init__(self, items: list[dict], *, option_items: list[dict] | None = None):
+        problems = validate_items(items, require_distinct_answers=option_items is None)
         if problems:
             raise ValueError("Dữ liệu điền chỗ trống không hợp lệ: " + "; ".join(problems))
+        if option_items is not None:
+            option_problems = validate_items(option_items)
+            if option_problems:
+                raise ValueError("Dữ liệu đáp án nhiễu không hợp lệ: " + "; ".join(option_problems))
         self.items = items
+        self.option_items = option_items or items
         self.id = uuid.uuid4().hex
         self.chosen: dict[str, int] = {}      # id câu -> chỉ số lựa chọn đã chốt
+        self._check_lock = threading.Lock()
         self.questions = self._build()
 
     def _build(self) -> list[dict]:
@@ -65,7 +79,7 @@ class FillBlankGame:
         qs = []
         for it in self.items:
             pool = {}
-            for other in self.items:
+            for other in self.option_items:
                 if _norm(other["answer"]) != _norm(it["answer"]):
                     pool.setdefault(_norm(other["answer"]), other["answer"])
             distractors = list(pool.values())
@@ -87,15 +101,16 @@ class FillBlankGame:
 
     def check_one(self, qid: str, idx) -> dict:
         """Chấm một câu khi người chơi bấm Check. Đã chốt rồi thì giữ lựa chọn cũ."""
-        q = next((q for q in self.questions if q["id"] == qid), None)
-        if q is None:
-            raise ValueError("Câu hỏi không tồn tại.")
-        if qid not in self.chosen:
-            if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < len(q["options"]):
-                raise ValueError("Lựa chọn không hợp lệ.")
-            self.chosen[qid] = idx
-        return {"ok": self.chosen[qid] == q["correct"], "correct_idx": q["correct"],
-                "correct_text": q["options"][q["correct"]]}
+        with self._check_lock:
+            q = next((q for q in self.questions if q["id"] == qid), None)
+            if q is None:
+                raise ValueError("Câu hỏi không tồn tại.")
+            if qid not in self.chosen:
+                if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < len(q["options"]):
+                    raise ValueError("Lựa chọn không hợp lệ.")
+                self.chosen[qid] = idx
+            return {"ok": self.chosen[qid] == q["correct"], "correct_idx": q["correct"],
+                    "correct_text": q["options"][q["correct"]]}
 
     def result(self) -> dict:
         """Kết quả cả ván, theo hợp đồng chung: score, total, wrong (+ review)."""

@@ -9,7 +9,14 @@ Kết quả chấm điểm theo hợp đồng chung: {"score": int, "total": int
 from __future__ import annotations
 
 import random
+import threading
+import unicodedata
 import uuid
+from copy import deepcopy
+
+
+def _norm(text: str) -> str:
+    return unicodedata.normalize("NFC", " ".join(text.split()).casefold())
 
 
 def shuffle_definitions(items: list[dict]) -> list[str]:
@@ -46,11 +53,20 @@ def validate_items(items) -> list[str]:
             problems.append(f"Cặp #{n} không đúng định dạng.")
             continue
         for field in ("id", "term", "definition"):
-            if not str(it.get(field, "")).strip():
-                problems.append(f"Cặp #{n} thiếu trường '{field}'.")
-    ids = [it["id"] for it in items if isinstance(it, dict) and "id" in it]
+            value = it.get(field)
+            if not isinstance(value, str) or not value.strip():
+                problems.append(f"Cặp #{n} thiếu trường '{field}' hợp lệ.")
+    ids = [
+        it["id"].strip() for it in items
+        if isinstance(it, dict) and isinstance(it.get("id"), str) and it["id"].strip()
+    ]
     if len(ids) != len(set(ids)):
         problems.append("Có id bị trùng nhau.")
+    if not problems:
+        if len({_norm(it["term"]) for it in items}) != len(items):
+            problems.append("Có thuật ngữ bị trùng hoặc nhập nhằng.")
+        if len({_norm(it["definition"]) for it in items}) != len(items):
+            problems.append("Có định nghĩa bị trùng hoặc nhập nhằng.")
     return problems
 
 
@@ -75,6 +91,8 @@ class MatchingGame:
         self.items = items
         self.order = _new_order(items)      # định nghĩa đã xáo; giao diện chỉ biết chỉ số
         self.id = uuid.uuid4().hex
+        self._check_lock = threading.Lock()
+        self._result: dict | None = None
 
     def public_view(self) -> dict:
         """Dữ liệu gửi cho giao diện (KHÔNG chứa đáp án)."""
@@ -86,6 +104,12 @@ class MatchingGame:
 
     def check(self, pairs: dict) -> dict:
         """pairs: {term_id: chỉ số định nghĩa}. Trả về kết quả chấm điểm."""
+        with self._check_lock:
+            return self._check(pairs)
+
+    def _check(self, pairs: dict) -> dict:
+        if self._result is not None:
+            return deepcopy(self._result)
         if not isinstance(pairs, dict) or set(pairs) != {it["id"] for it in self.items}:
             raise ValueError("Chưa ghép đủ các cặp.")
         idxs = list(pairs.values())
@@ -101,5 +125,8 @@ class MatchingGame:
              "correct": it["definition"], "ok": it["id"] not in wrong}
             for it in self.items
         ]
-        return {"score": len(self.items) - len(wrong), "total": len(self.items),
-                "wrong": wrong, "review": review}
+        self._result = {
+            "score": len(self.items) - len(wrong), "total": len(self.items),
+            "wrong": wrong, "review": review,
+        }
+        return deepcopy(self._result)

@@ -36,6 +36,7 @@ const $ = selector => document.querySelector(selector);
 const esc = text => String(text).replace(/[&<>"']/g, char =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 let game, index = 0, selected = null, checked = null;
+const ATTEMPT_STORAGE_KEY = "edu_game_attempt_id";
 
 async function api(path, body) {
   const response = await fetch(path, {
@@ -45,18 +46,38 @@ async function api(path, body) {
   if (!response.ok) throw new Error(result.error || "Không thể kết nối máy chủ.");
   return result;
 }
+function tabAttemptId() {
+  // An explicit URL identifies this tab's attempt; sessionStorage is only a fallback.
+  const urlId = new URLSearchParams(window.location.search).get("attempt_id");
+  if (urlId) {
+    sessionStorage.setItem(ATTEMPT_STORAGE_KEY, urlId);
+    return urlId;
+  }
+  return sessionStorage.getItem(ATTEMPT_STORAGE_KEY);
+}
+function questionText(question) {
+  return question.is_blank ? `${question.before}___${question.after}` : question.before;
+}
 
 function render() {
   const count = game.questions.length;
-  $("#progress").style.width = `${100 * (index + (checked ? 1 : 0)) / count}%`;
+  const progress = game.progress || {};
+  const completed = Object.keys(progress).length;
+  $("#progress").style.width = `${100 * completed / count}%`;
   if (index >= count) return finish();
   const question = game.questions[index];
   const answer = selected === null ? "" : esc(question.options[selected].text);
-  const questionText = question.is_blank
+  const questionHtml = question.is_blank
     ? `${esc(question.before)}<span class="blank">${answer}</span>${esc(question.after)}`
     : esc(question.before);
-  let markup = `<div class="sub">${esc(game.title)} · Bài kiểm tra cuối</div>
-    <div class="q">${questionText}</div>`;
+  const rows = game.questions.filter(item => progress[item.id]).map(item => {
+    const saved = progress[item.id];
+    return `<li>${esc(questionText(item))} — ${esc(item.options[saved.idx].text)}
+      (${saved.ok ? "đúng" : "sai"})</li>`;
+  }).join("");
+  let markup = `<details><summary>Đã trả lời ${completed}/${count} câu</summary><ul>${rows}</ul></details>
+    <div class="sub">${esc(game.title)} · Bài kiểm tra cuối</div>
+    <div class="q">${questionHtml}</div>`;
   for (const option of question.options) {
     let cls = "opt";
     if (checked && option.idx === checked.correct_idx) cls += " ok";
@@ -84,8 +105,10 @@ async function advance() {
     $("#error").textContent = "";
     if (!checked) {
       checked = await api("/api/final_test/check", {
-        game_id: game.game_id, qid: game.questions[index].id, idx: selected
+        attempt_id: game.attempt_id, game_id: game.game_id,
+        qid: game.questions[index].id, idx: selected
       });
+      game.progress[game.questions[index].id] = {...checked, idx: selected};
     } else {
       index++;
       selected = null;
@@ -97,7 +120,9 @@ async function advance() {
 
 async function finish() {
   try {
-    const result = await api("/api/final_test/result", {game_id: game.game_id});
+    const result = await api("/api/final_test/result", {
+      attempt_id: game.attempt_id, game_id: game.game_id
+    });
     let markup = `<div class="sub">${esc(game.title)}</div>
       <div class="q">Hoàn thành bài kiểm tra!<br>${result.score}/${result.total} câu đúng
       <br>Điểm: ${Number(result.grade_10).toFixed(2)}/10</div>`;
@@ -108,13 +133,27 @@ async function finish() {
     }
     markup += `<button class="act" id="summary">Xem tổng kết</button>`;
     $("#main").innerHTML = markup;
-    $("#summary").onclick = () => { window.location.href = "/"; };
+    $("#summary").onclick = () => {
+      window.location.href = `/?attempt_id=${encodeURIComponent(game.attempt_id)}`;
+    };
   } catch (error) { $("#error").textContent = error.message; }
 }
 
 (async () => {
   try {
-    game = await api("/api/final_test/new", {});
+    const attemptId = tabAttemptId();
+    if (!attemptId) {
+      window.location.replace("/fill_blank.html");
+      return;
+    }
+    const session = await fetch(`/api/session?attempt_id=${encodeURIComponent(attemptId)}`);
+    const state = await session.json();
+    if (!session.ok) throw new Error(state.error || "Phiên đã hết hạn. Hãy tải lại trang.");
+    game = await api("/api/final_test/new", {
+      attempt_id: attemptId
+    });
+    index = game.questions.findIndex(question => !game.progress?.[question.id]);
+    if (index < 0) index = game.questions.length;
     render();
   } catch (error) { $("#error").textContent = error.message; }
 })();

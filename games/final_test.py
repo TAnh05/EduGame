@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+import unicodedata
 
 GAME_NAMES = ("fill_blank", "matching", "quiz")
 MAX_QUESTIONS = 30
@@ -10,7 +11,7 @@ MIN_OPTIONS = 2
 
 
 def _normalize(text: str) -> str:
-    return " ".join(text.split()).casefold()
+    return unicodedata.normalize("NFC", " ".join(text.split()).casefold())
 
 
 def _validate_chapter(chapter: dict) -> dict[str, list[dict]]:
@@ -69,6 +70,16 @@ def _build_options(answer: str, pool: list[str]) -> tuple[list[str], int]:
     return options, next(i for i, option in enumerate(options) if _normalize(option) == _normalize(answer))
 
 
+def _matching_distractors(answer: str, matching_answers: list[str],
+                          cross_game_answers: list[str]) -> list[str]:
+    local = [value for value in matching_answers
+             if _normalize(value) != _normalize(answer)]
+    if len({_normalize(answer), *(_normalize(value) for value in local)}) >= MIN_OPTIONS:
+        return local
+    return [value for value in cross_game_answers
+            if _normalize(value) != _normalize(answer)]
+
+
 def build_final_quiz(chapter: dict) -> list[dict]:
     """Convert the three game parts into at most 30 traceable quiz items."""
     parts = _validate_chapter(chapter)
@@ -80,6 +91,17 @@ def build_final_quiz(chapter: dict) -> list[dict]:
         item.get("definition") for item in parts["matching"]
         if isinstance(item.get("definition"), str) and item["definition"].strip()
     ]
+    quiz_answers = [
+        item["options"][item["answer"]]
+        for item in parts["quiz"]
+        if isinstance(item.get("options"), list)
+        and isinstance(item.get("answer"), int)
+        and not isinstance(item.get("answer"), bool)
+        and 0 <= item["answer"] < len(item["options"])
+        and isinstance(item["options"][item["answer"]], str)
+        and item["options"][item["answer"]].strip()
+    ]
+    cross_game_distractors = fill_answers + matching_definitions + quiz_answers
     questions = []
 
     for item in parts["fill_blank"]:
@@ -106,8 +128,8 @@ def build_final_quiz(chapter: dict) -> list[dict]:
         if not isinstance(term, str) or not term.strip() or not isinstance(answer, str) or not answer.strip():
             raise ValueError("Câu Matching cần term và definition không rỗng.")
         options, correct = _build_options(
-            answer,
-            [value for value in matching_definitions if _normalize(value) != _normalize(answer)],
+            answer, _matching_distractors(
+                answer, matching_definitions, cross_game_distractors),
         )
         questions.append({
             "id": f"final:matching:{item['id']}",

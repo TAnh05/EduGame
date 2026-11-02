@@ -12,4 +12,5 @@ venv/
 cache/
 uploads/
 *.log
+data/edugame.sqlite3*
 .DS_Store

@@ -39,6 +39,7 @@ select{font:inherit;padding:6px;margin-top:10px;max-width:100%;border-radius:8px
 <script>
 const $ = s => document.querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ATTEMPT_STORAGE_KEY = "edu_game_attempt_id";
 let game = null, title = "", i = 0, sel = null, last = null, res = null;
 
 async function api(path, body) {
@@ -48,17 +49,32 @@ async function api(path, body) {
   if (!r.ok) throw new Error(j.error || "Lỗi không xác định");
   return j;
 }
+function tabAttemptId() {
+  return sessionStorage.getItem(ATTEMPT_STORAGE_KEY);
+}
+function questionText(question) {
+  return question.is_blank ? `${question.before}___${question.after}` : question.before;
+}
 async function guard(fn) { try { $("#err").textContent = ""; await fn(); } catch (e) { $("#err").textContent = e.message; } }
 
-async function start(onlyIds) {
+async function start(onlyIds, restart = false) {
   await guard(async () => {
-    const g = await api("/api/quiz/new", {file: $("#file").value, only_ids: onlyIds});
-    game = g; title = g.title; i = 0; sel = null; last = null; res = null; draw();
+    const body = {file: $("#file").value, only_ids: onlyIds};
+    const attemptId = game?.attempt_id || tabAttemptId();
+    if (attemptId) body.attempt_id = attemptId;
+    if (restart) body.restart = true;
+    const g = await api("/api/quiz/new", body);
+    game = g; title = g.title;
+    i = g.questions.findIndex(q => !g.progress?.[q.id]);
+    if (i < 0) i = g.questions.length;
+    sel = null; last = null; res = null; draw();
   });
 }
 function draw() {
   const n = game.questions.length;
-  $("#prog").style.width = (100 * (i + (last ? 1 : 0)) / n) + "%";
+  const progress = game.progress || {};
+  const completed = Object.keys(progress).length;
+  $("#prog").style.width = (100 * completed / n) + "%";
   if (i >= n) return finish();
   const q = game.questions[i], checked = !!last;
   const word = sel !== null ? esc(q.options[sel].text) : "";
@@ -71,7 +87,13 @@ function draw() {
     qHtml = `${esc(q.before)}${sel !== null ? `<br><span style="color:${col}; font-size:1.2rem;">↳ ${word}</span>` : ""}`;
   }
 
-  let h = `<div class="sub">${esc(title)}</div><div class="owl">🦉</div>
+  const rows = game.questions.filter(item => progress[item.id]).map(item => {
+    const saved = progress[item.id];
+    return `<li>${esc(questionText(item))} — ${esc(item.options[saved.idx].text)}
+      (${saved.ok ? "đúng" : "sai"})</li>`;
+  }).join("");
+  let h = `<details><summary>Đã trả lời ${completed}/${n} câu</summary><ul>${rows}</ul></details>
+   <div class="sub">${esc(title)}</div><div class="owl">🦉</div>
    <div class="q">${qHtml}</div>`;
   for (const o of q.options) {
     let c = "opt";
@@ -88,14 +110,20 @@ function draw() {
 }
 async function act() {
   await guard(async () => {
-    if (!last) { last = await api("/api/quiz/check", {game_id: game.game_id, qid: game.questions[i].id, idx: sel}); }
+    if (!last) {
+      last = await api("/api/quiz/check", {
+        attempt_id: game.attempt_id, game_id: game.game_id,
+        qid: game.questions[i].id, idx: sel
+      });
+      game.progress[game.questions[i].id] = {...last, idx: sel};
+    }
     else { i++; sel = null; last = null; }
     draw();
   });
 }
 async function finish() {
   await guard(async () => {
-    res = await api("/api/quiz/result", {game_id: game.game_id});
+    res = await api("/api/quiz/result", {attempt_id: game.attempt_id, game_id: game.game_id});
     let h = `<div class="owl">🏆</div><div class="q">Hoàn thành!<br>Điểm: ${res.score}/${res.total}</div>`;
     for (const r of res.review.filter(r => !r.ok))
       h += `<div class="rev">[${esc(r.id)}] ${esc(r.sentence)}<br>Bạn chọn: ${esc(r.chosen)} · Đúng: <b>${esc(r.correct)}</b></div>`;
@@ -103,23 +131,41 @@ async function finish() {
     if (res.wrong.length) h += `<button class="act bad" id="redo">Ôn câu sai</button>`;
     h += `<button class="act" id="done">Hoàn tất</button>`;
     $("#main").innerHTML = h + "</div>";
-    $("#again").onclick = () => start();
+    $("#again").onclick = () => start(undefined, true);
     if (res.wrong.length) $("#redo").onclick = () => start(res.wrong);
-    $("#done").onclick = () => { window.location.href = "/"; };
+    $("#done").onclick = () => {
+      window.location.href = `/?attempt_id=${encodeURIComponent(game.attempt_id)}`;
+    };
   });
 }
-$("#quit").onclick = () => start();
-$("#file").onchange = () => start();
+$("#quit").onclick = () => start(undefined, true);
+$("#file").onchange = () => start(undefined, true);
 guard(async () => {
   const {files} = await api("/api/quiz/files");
   if (!files.length) throw new Error("Không tìm thấy file *quiz*.json trong thư mục data/.");
   $("#file").innerHTML = files.map(f => `<option>${esc(f)}</option>`).join("");
-  const subject = new URLSearchParams(window.location.search).get("subject");
+  const attemptId = tabAttemptId();
+  if (!attemptId) {
+    window.location.replace("/fill_blank.html");
+    return;
+  }
+  const session = await api(`/api/session?attempt_id=${encodeURIComponent(attemptId)}`);
+  const attempt = session.attempt;
+  const subject = attempt?.subject || new URLSearchParams(window.location.search).get("subject");
   if (subject) {
     const file = files.find(f => f.includes(subject));
     if (!file) throw new Error(`Không tìm thấy file quiz cho môn "${subject}".`);
     $("#file").value = file;
   }
-  await start();
+  const active = attempt?.review_games?.quiz || attempt?.games?.quiz;
+  reviewOnly = Boolean(attempt?.review_games?.quiz);
+  if (active) {
+    game = active; title = active.title;
+    i = active.questions.findIndex(q => !active.progress?.[q.id]);
+    if (i < 0) i = active.questions.length;
+    draw();
+  } else {
+    await start();
+  }
 });
 </script></body></html>

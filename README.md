@@ -24,11 +24,26 @@ Tính năng: F1 tải file · F2 điền chỗ trống (chọn đáp án tự si
 
 ```bash
 pip install -r requirements.txt     # thư viện của cả nhóm (Streamlit, Pydantic, ...)
-python server.py                # phần game chỉ cần thư viện chuẩn, mở http://127.0.0.1:8000
-python -m unittest discover -s tests -v  # chạy test luồng game
+python server.py                    # mở http://127.0.0.1:8000
+python -m unittest discover -s tests -v
+py -3.12 tests\load_test.py --clients 10 50 100
 ```
 
 Khóa API (cho module AI của bạn khác): copy `.env.example` thành `.env` và điền `ANTHROPIC_API_KEY`. File `.env` đã nằm trong `.gitignore`, không commit.
+
+Server game dùng SQLite trong `data/edugame.sqlite3`; thư mục này được tạo tự động và database không được commit. Có thể đặt đường dẫn khác bằng biến môi trường `EDUGAME_DB_PATH`. Dữ liệu phiên, lượt chơi và câu trả lời được giữ qua lần khởi động lại server. Mẫu `.gitignore` loại database cùng các file WAL/SHM (`data/edugame.sqlite3*`) khỏi repository và gói tạo từ các file đã theo dõi; không đưa database đang chạy hoặc bản sao lưu dữ liệu học viên vào gói phát hành.
+
+Trình duyệt nhận cookie phiên ngẫu nhiên `HttpOnly; SameSite=Lax`, hết hạn sau 30 ngày. Mỗi tab lưu `attempt_id` riêng trong `sessionStorage` và gắn ID này khi khôi phục qua `GET /api/session?attempt_id=...`; server kiểm tra quyền sở hữu attempt theo cookie trước mọi thao tác game. Phiên hết hạn bị từ chối, không tự cấp phiên mới để tiếp tục attempt cũ.
+
+Mặc định server giới hạn JSON body ở 2 MiB và cho phép tối đa 120 POST/phút trên mỗi session cookie (`EDUGAME_MAX_REQUESTS_PER_MINUTE` để điều chỉnh). Khi có HTTPS reverse proxy đáng tin cậy, đặt `EDUGAME_TRUST_PROXY=true` và bảo đảm proxy ghi `X-Forwarded-Proto: https`; cookie khi đó có `Secure`. Có thể đặt `EDUGAME_COOKIE_SECURE=true` để luôn bật cờ này hoặc `false` khi chạy HTTP cục bộ. Chỉ bật tin cậy proxy khi ứng dụng chỉ nhận kết nối từ proxy đó. Không gửi session ID do client tự chọn.
+
+Mọi thao tác ghi trạng thái câu trả lời và kết quả dùng transaction SQLite `BEGIN IMMEDIATE`; không bỏ transaction để tăng tốc vì có thể làm lệch câu trả lời và điểm khi request đồng thời.
+
+Test HTTP đa người dùng, song song và khôi phục database:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ---
 
@@ -104,8 +119,8 @@ Edu_game/
 2. **Game chỉ đọc dữ liệu theo hợp đồng**, không đọc văn bản thô, không gọi API AI.
 3. **Đáp án đúng ở lại phía server.** `public_view()` chỉ gửi câu và những phương án có `idx` (không đánh dấu đáp án đúng); `check_one()` mới trả `correct_idx`/`correct_text` sau khi kiểm tra. Fill Blank hiện **chọn đáp án**, không gõ văn bản.
 4. **Mọi game cùng một khuôn class:** `__init__(items)` gọi `validate_items` (lỗi thì `raise ValueError` bằng tiếng Việt) → `public_view()` → hàm chấm (`check` / `check_one`) → `result()`.
-5. **Thứ tự game hiện là cố định trong `server.py`**, mở khóa dựa trên các cờ `FLOW_STATE`, không có biến `GAME_ORDER`/class `GameFlow` trong code. Danh sách cấu hình và random thứ tự là **thiết kế tương lai**, chưa triển khai.
-6. **Hạn chế hiện tại:** `FLOW_STATE` chung cho mọi kết nối và chưa khóa môn/chương xuyên suốt phiên chơi; không coi demo hiện tại là hệ thống đa người dùng.
+5. **Thứ tự game cố định trong `server.py`**; trạng thái mở khóa và kết quả được lưu trong từng attempt SQLite, không chia sẻ giữa các phiên.
+6. **Quản lý phiên:** cookie phiên ngẫu nhiên do server cấp → một phiên có nhiều attempt → mỗi attempt có chương, game, câu trả lời và kết quả riêng. Giao dịch SQLite `BEGIN IMMEDIATE` tuần tự hóa các thao tác ghi; snapshot game được lưu bằng JSON, không dùng pickle.
 
 ### Hợp đồng `chapter.json`
 
@@ -198,10 +213,10 @@ Cách em đặt ranh giới: **AI viết nhanh phần lặp theo khuôn (HTML/CS
 Mỗi lần chỉ một việc, kèm điều kiện hoàn thành ("không vào được game 2 khi chưa xong game 1"). Việc nhỏ thì diff nhỏ, đọc được.
 
 **c) Kiểm tra dữ liệu ở biên**
-Mỗi game có `validate_items` trả về danh sách lỗi tiếng Việt; constructor `raise ValueError` nếu dữ liệu sai. `check_one` / `check` từ chối chỉ số không hợp lệ (kể cả `bool`), từ chối chấm khi chưa ghép đủ cặp. `result()` từ chối khi chưa trả lời hết, và đó chính là điều kiện mở khóa game 2.
+Mỗi game có `validate_items` trả về danh sách lỗi tiếng Việt; constructor `raise ValueError` nếu dữ liệu sai. ID phải là chuỗi không rỗng; Quiz không chấp nhận lựa chọn trùng sau chuẩn hóa chữ hoa/thường và khoảng trắng; Matching không chấp nhận thuật ngữ/định nghĩa nhập nhằng theo cùng chuẩn hóa. `check_one` / `check` từ chối chỉ số không hợp lệ (kể cả `bool`), Matching chỉ chấp nhận kết quả của lần nộp đầu tiên, và game từ chối chấm khi chưa ghép đủ cặp. `result()` từ chối khi chưa trả lời hết, và đó chính là điều kiện mở khóa game 2.
 
 **d) Test**
-`tests/test_game_flow.py` và `tests/test_final_test.py` kiểm tra luồng ba game, Final Test và hợp đồng kết quả; toàn bộ suite hiện có 34 test:
+`tests/test_game_flow.py`, `tests/test_final_test.py` và `tests/test_game_validation.py` kiểm tra luồng ba game, Final Test, hợp đồng kết quả và validation; toàn bộ suite hiện có 49 test:
 - Matching bị khóa cho đến khi fill_blank có kết quả đầy đủ.
 - Fill_blank chưa trả lời hết thì không mở khóa matching.
 - Quiz bị khóa cho đến khi Matching hoàn thành; hoàn tất Quiz mới mở Final Test.
